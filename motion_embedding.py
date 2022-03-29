@@ -1,6 +1,6 @@
 import numpy as np
 
-class MotionEmbeding:
+class MotionEmbedding:
     torso = None
     left_arm = None
     right_arm = None

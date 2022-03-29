@@ -3,22 +3,22 @@ from  typing import Tuple, List, Dict
 import numpy as np
 
 from dtw import accelerated_dtw
-from motion_embeding import MotionEmbeding
+from motion_embedding import MotionEmbedding
 
-def compute_standard_action_database(data_path) -> Dict(str, List(MotionEmbeding)):
+def compute_standard_action_database(data_path) -> Dict(str, List(MotionEmbedding)):
     std_db = {}
     # dummy
-    feat1_1 = MotionEmbeding()
+    feat1_1 = MotionEmbedding()
     feat1_1.init_by_random()
-    feat1_2 = MotionEmbeding()
+    feat1_2 = MotionEmbedding()
     feat1_2.init_by_random()
-    feat2_1 = MotionEmbeding()
+    feat2_1 = MotionEmbedding()
     feat2_1.init_by_random()
-    feat2_2 = MotionEmbeding()
+    feat2_2 = MotionEmbedding()
     feat2_2.init_by_random()
-    feat3_1 = MotionEmbeding()
+    feat3_1 = MotionEmbedding()
     feat3_1.init_by_random()
-    feat3_2 = MotionEmbeding()
+    feat3_2 = MotionEmbedding()
     feat3_2.init_by_random()
 
     std_db['action1'] = [feat1_1, feat1_2]
@@ -29,32 +29,32 @@ def compute_standard_action_database(data_path) -> Dict(str, List(MotionEmbeding
 def keypoint_detect(video):
     return None # coordinate(2) x nb(5) x T, T is not fixed value
 
-def motion_encode(keypoints) -> MotionEmbeding:
+def motion_encode(keypoints) -> MotionEmbedding:
     """
-    return dict motion embeding: h1 x T/8, h1=128 for the torso motion encoder and h1=64 for the other encoders, T is not fixed value
+    return dict motion embedding: h1 x T/8, h1=128 for the torso motion encoder and h1=64 for the other encoders, T is not fixed value
     """
     # dummy
-    motion_embeding = MotionEmbeding()
-    motion_embeding.init_by_random
-    return motion_embeding
+    motion_embedding = MotionEmbedding()
+    motion_embedding.init_by_random
+    return motion_embedding
 
-def compute_action_similarities(motion_embeding: MotionEmbeding, std_db: Dict(str, List(MotionEmbeding))) -> Dict(str, List(float)):
+def compute_action_similarities(motion_embedding: MotionEmbedding, std_db: Dict(str, List(MotionEmbedding))) -> Dict(str, List(float)):
     """
-    param motion_embeding: reference motion embeding to recognize
+    param motion_embedding: reference motion embedding to recognize
     param std_db: standard action database
-    return Dict(str, List(float) similarities: Averages of similarity for each body part between reference motion embeding and each motion embeding of std_db.
+    return Dict(str, List(float) similarities: Averages of similarity for each body part between reference motion embedding and each motion embedding of std_db.
     Similarity for each body part is computed by average cosine similarity between the embedding pairs in path. 
     """
     # use accelerated_dtw
     pass
 
-def predict_action(motion_embeding: MotionEmbeding, std_db: Dict(str, List(MotionEmbeding))) -> Tuple(str, float):
+def predict_action(motion_embedding: MotionEmbedding, std_db: Dict(str, List(MotionEmbedding))) -> Tuple(str, float):
     """
     return action label, similarities
     Predict action based on similarities.
-    The action that has the least similarity between reference motion embeding and std_db is determined.  
+    The action that has the least similarity between reference motion embedding and std_db is determined.  
     """
-    action_similarities_dict = compute_action_similarities(motion_embeding, std_db)
+    action_similarities_dict = compute_action_similarities(motion_embedding, std_db)
     actions_similarities_pair = [[], []] # actions, similarities
     for action, similarities in action_similarities_dict:
         n = len(similarities)
@@ -70,8 +70,8 @@ def main():
     video = None
     std_db = compute_standard_action_database(None)
     keypoints = keypoint_detect(video)
-    motion_embeding = motion_encode(keypoints=keypoints)
-    action_label, similarity = predict_action(motion_embeding, std_db)
+    motion_embedding = motion_encode(keypoints=keypoints)
+    action_label, similarity = predict_action(motion_embedding, std_db)
     print(f"Predicted action is {action_label}, and similarity is {similarity}")
 
 if __name__ == '__main__':
