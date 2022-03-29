@@ -29,7 +29,7 @@ def compute_standard_action_database(data_path) -> Dict(str, List(MotionEmbeding
 def keypoint_detect(video):
     return None # coordinate(2) x nb(5) x T, T is not fixed value
 
-def encode(keypoints) -> MotionEmbeding:
+def motion_encode(keypoints) -> MotionEmbeding:
     """
     return dict motion embeding: h1 x T/8, h1=128 for the torso motion encoder and h1=64 for the other encoders, T is not fixed value
     """
@@ -70,7 +70,7 @@ def main():
     video = None
     std_db = compute_standard_action_database(None)
     keypoints = keypoint_detect(video)
-    motion_embeding = encode(keypoints=keypoints)
+    motion_embeding = motion_encode(keypoints=keypoints)
     action_label, similarity = predict_action(motion_embeding, std_db)
     print(f"Predicted action is {action_label}, and similarity is {similarity}")
 
