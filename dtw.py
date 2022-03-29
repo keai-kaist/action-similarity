@@ -1,7 +1,7 @@
 import sys
 from math import isinf
 
-from numpy import array, zeros, full, argmin, inf, ndim
+from numpy import array, zeros, full, argmin, inf, ndim, ndarray, array, random
 from scipy.spatial.distance import cdist
 
 from utils import euclidean_distances
@@ -71,16 +71,23 @@ def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
     """
     assert len(x)
     assert len(y)
+    if not isinstance(x, ndarray):
+        x = array(x)
+    if not isinstance(y, ndarray):
+        y = array(y)
     if ndim(x) == 1:
         x = x.reshape(-1, 1)
     if ndim(y) == 1:
         y = y.reshape(-1, 1)
+    assert dist_fun == 'cosine' and not any(all(feat==0) for feat in x), "feature that has zero vector is not available"
+    assert dist_fun == 'cosine' and not any(all(feat==0) for feat in y), "feature that has zero vector is not available"
+
     r, c = len(x), len(y)
     D0 = zeros((r + 1, c + 1))
     D0[0, 1:] = inf
     D0[1:, 0] = inf
     D1 = D0[1:, 1:]
-    D0[1:, 1:] = cdist(x, y, dist_fun)
+    D0[1:, 1:] = cdist(x, y, dist_fun) # make distance map, len(x) x len(y)
     C = D1.copy()
     for i in range(r):
         for j in range(c):
@@ -117,21 +124,26 @@ def _traceback(D):
 
 if __name__ == '__main__':
     
-    if sys.argv[1] == '1D':
-        x = [[0], [0], [1], [1], [2], [4], [2], [1], [2], [0]]
-        y = [[1], [1], [1], [2], [2], [2], [2], [3], [2], [0]]
+    if len(sys.argv) == 1:
+        x = random.rand(8, 64)
+        y = random.rand(8, 64)
+        
+    elif sys.argv[1] == '1D':
+        x = [0, 0, 1, 1, 2, 4, 2, 1, 2, 0]
+        y = [1, 1, 1, 2, 2, 2, 2, 3, 2, 0]
     elif sys.argv[1] == '2D':
-        x = [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2], [4, 3], [2, 3], [1, 1], [2, 2], [0, 1]]
+        x = [[1, 0], [0, 1], [1, 1], [1, 2], [2, 2], [4, 3], [2, 3], [1, 1], [2, 2], [0, 1]]
         y = [[1, 0], [1, 1], [1, 1], [2, 1], [4, 3], [4, 3], [2, 3], [3, 1], [1, 2], [1, 0]]
+    
 
-    dist, cost, acc, path = accelerated_dtw(x, y)
+    dist, cost, acc, path = accelerated_dtw(x, y, dist_fun='cosine')
 
     # Vizualize
     from matplotlib import pyplot as plt
     plt.imshow(cost.T, origin='lower', cmap=plt.cm.Reds, interpolation='nearest')
     plt.plot(path[0], path[1], '-o')  # relation
-    plt.xticks(range(len(x)), x)
-    plt.yticks(range(len(y)), y)
+    #plt.xticks(range(len(x)), x)
+    #plt.yticks(range(len(y)), y)
     plt.xlabel('x')
     plt.ylabel('y')
     plt.axis('tight')
