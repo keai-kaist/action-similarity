@@ -79,8 +79,8 @@ def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
         x = x.reshape(-1, 1)
     if ndim(y) == 1:
         y = y.reshape(-1, 1)
-    assert dist_fun == 'cosine' and not any(all(feat==0) for feat in x), "feature that has zero vector is not available"
-    assert dist_fun == 'cosine' and not any(all(feat==0) for feat in y), "feature that has zero vector is not available"
+    assert not (dist_fun == 'cosine' and any(all(feat==0) for feat in x)), "feature that has zero vector is not available"
+    assert not (dist_fun == 'cosine' and any(all(feat==0) for feat in y)), "feature that has zero vector is not available"
 
     r, c = len(x), len(y)
     D0 = zeros((r + 1, c + 1))
@@ -102,8 +102,8 @@ def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
         path = range(len(x)), zeros(len(x))
     else:
         path = _traceback(D0)
-    return D1[-1, -1], C, D1, path
-
+    n_steps = len(path[0])
+    return D1[-1, -1]/n_steps, C, D1, path #mean of dist, cost, acc, path
 
 def _traceback(D):
     i, j = array(D.shape) - 2
@@ -137,7 +137,6 @@ if __name__ == '__main__':
     
 
     dist, cost, acc, path = accelerated_dtw(x, y, dist_fun='cosine')
-
     # Vizualize
     from matplotlib import pyplot as plt
     plt.imshow(cost.T, origin='lower', cmap=plt.cm.Reds, interpolation='nearest')
