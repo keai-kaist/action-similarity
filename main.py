@@ -51,12 +51,11 @@ def compute_action_similarities(anchor: MotionEmbedding, std_db: Dict[str, List[
         if not action_label in action_similarities:
             action_similarities[action_label] = []
         for motion_embedding in motion_embeddings:
-            # 평균값인지 합인지 확인하기
-            torso_similarity = accelerated_dtw(anchor.torso, motion_embedding.torso)
-            left_leg_similarity = accelerated_dtw(anchor.left_leg, motion_embedding.left_leg)
-            right_leg_similarity = accelerated_dtw(anchor.right_leg, motion_embedding.right_leg)
-            left_arm_similarity = accelerated_dtw(anchor.left_arm, motion_embedding.left_arm)
-            right_arm_similarity = accelerated_dtw(anchor.right_arm, motion_embedding.right_arm)
+            torso_similarity = accelerated_dtw(anchor.torso, motion_embedding.torso, dist_fun='cosine')
+            left_leg_similarity = accelerated_dtw(anchor.left_leg, motion_embedding.left_leg, dist_fun='cosine')
+            right_leg_similarity = accelerated_dtw(anchor.right_leg, motion_embedding.right_leg, dist_fun='cosine')
+            left_arm_similarity = accelerated_dtw(anchor.left_arm, motion_embedding.left_arm, dist_fun='cosine')
+            right_arm_similarity = accelerated_dtw(anchor.right_arm, motion_embedding.right_arm, dist_fun='cosine')
             similarity = np.mean([torso_similarity, left_leg_similarity, right_leg_similarity, left_arm_similarity, right_arm_similarity])
             action_similarities[action_label].append(similarity)
     return action_similarities
