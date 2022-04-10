@@ -1,33 +1,13 @@
 from typing import Tuple, List, Dict
 
-import os
-import re
 import argparse
-import json
-import pickle
-import base64
-
-import numpy as np
-from glob import glob
-from tqdm import tqdm
-import cv2
-import moviepy.editor as mpy
-import requests
-
-from pprint import pprint
 
 from dtw import accelerated_dtw
 from motion_embeding import MotionEmbeding
 
 from bpe import Config
-from bpe.similarity_analyzer import SimilarityAnalyzer
-from bpe.functional.motion import preprocess_motion2d_rc
-# , cocopose2motion
-from bpe.functional.utils import pad_to_height
-from bpe.functional.visualization import preprocess_sequence
 
 from action_similarity.database import ActionDatabase
-from action_similarity.motion import cocopose2motion
 from action_similarity.motion import extract_keypoints
 
 
@@ -78,7 +58,7 @@ def main():
         model_path='./data/model_best.pth.tar',
     )
     db.compute_standard_action_database(skeleton_path='./data/custom_skeleton')
-    keypoints = extract_keypoints(video_path)
+    keypoints = extract_keypoints(video_path, fps=4)
     motion_embeding = motion_encode(keypoints=keypoints)
     action_label, similarity = predict_action(motion_embeding, std_db)
     print(f"Predicted action is {action_label}, and similarity is {similarity}")

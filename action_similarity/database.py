@@ -9,13 +9,11 @@ from tqdm import tqdm
 
 from bpe import Config
 from bpe.similarity_analyzer import SimilarityAnalyzer
-from bpe.functional.motion import preprocess_motion2d_rc
-# , cocopose2motion
+
 from bpe.functional.utils import pad_to_height
-from bpe.functional.visualization import preprocess_sequence
 
 from action_similarity.utils import parse_action_label
-from action_similarity.motion import cocopose2motion
+from action_similarity.motion import compute_motion_embedding
 
 class ActionDatabase():
 
@@ -34,12 +32,7 @@ class ActionDatabase():
         self.mean_pose_bpe = np.load(os.path.join(data_dir, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(data_dir, 'stdpose_rc_with_view_unit64.npy'))
 
-
-
     def compute_standard_action_database(self, skeleton_path: str):
-
-        # TODO:
-        # refined_skeleton format 대신 brain format 사용해서 skeleton parsing 할 수 있게끔 변경
 
         height, width = 1080, 1920
         h1, w1, scale = pad_to_height(self.config.img_size[0], height, width)
@@ -50,26 +43,13 @@ class ActionDatabase():
             self.db[action_idx] = []
             print(f'create embeddings of action: {self.actions[action_idx]}...')
             for skeleton in tqdm(glob(f'{action_dir}/*')):
-                seq = cocopose2motion(
-                    # num_joints=self.config.unique_nr_joints, 
-                    json_dir=skeleton,
+                seq_features = compute_motion_embedding(
+                    skeletons_json_path=skeleton,
+                    similarity_analyzer=self.similarity_analyzer,
+                    mean_pose_bpe=self.mean_pose_bpe,
+                    std_pose_bpe=self.std_pose_bpe,
                     scale=scale,
-                )
-
-                seq = preprocess_sequence(seq)
-                seq_origin = preprocess_motion2d_rc(
-                    motion=seq,
-                    mean_pose=self.mean_pose_bpe,
-                    std_pose=self.std_pose_bpe,
-                )
-
-                # move input to device
-                seq_origin = seq_origin.to(self.config.device)
-
-                seq_features = self.similarity_analyzer.get_embeddings(
-                    seq=seq_origin,
-                    video_window_size=16,
-                    video_stride=2,
+                    device=self.config.device,
                 )
                 self.db[action_idx].append(seq_features)
 
