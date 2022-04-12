@@ -56,7 +56,6 @@ def dtw(x, y, dist_fun=euclidean_distances, warp=1, w=inf, s=1.0):
         path = _traceback(D0)
     return D1[-1, -1], C, D1, path
 
-
 def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
     """
     Computes Dynamic Time Warping (DTW) of two sequences in a faster way.
