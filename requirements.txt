@@ -1,2 +1,7 @@
 numpy
 scipy
+tqdm
+more-itertools
+tslearn
+moviepy
+opencv-python
