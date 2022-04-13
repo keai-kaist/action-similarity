@@ -65,12 +65,17 @@ def main():
     video_path = './samples/S001C001P001R001A007_rgb.avi'
     db = ActionDatabase(
         config=config,
-        data_dir=args.data_dir,
         action_label_path='./data/action_label.txt',
-        model_path='./data/model_best.pth.tar',
     )
-    db.compute_standard_action_database(skeleton_path='./data/custom_skeleton')
-    keypoints = extract_keypoints(video_path, fps=4)
+    # db.compute_standard_action_database(
+    #     skeleton_path='./data/custom_skeleton',
+    #     data_path=args.data_dir,
+    #     model_path='./data/model_best.pth.tar',
+    # )
+    db.load_database(db_path='./data/embeddings')
+    for action_idx, features in db.db.items():
+        print(db.actions[action_idx], len(features))
+    keypoints = extract_keypoints(video_path, fps=30)
     motion_embeding = motion_encode(keypoints=keypoints)
     action_label, similarity = predict_action(motion_embeding, std_db)
     print(f"Predicted action is {action_label}, and similarity is {similarity}")
