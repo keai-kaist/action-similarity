@@ -1,7 +1,7 @@
 import os
 import base64
 import json
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Union
 import requests
 
 from tqdm import tqdm
@@ -16,11 +16,23 @@ from bpe.functional.motion import preprocess_motion2d_rc
 from bpe.functional.visualization import preprocess_sequence
 
 
-def cocopose2motion(json_dir: str, scale: float = 1.0, num_joints: int = 15):
-    with open(json_dir) as f:
-        annotations = json.load(f)
-        annotations = annotations['annotations']
-    
+def cocopose2motion(json_dir: Union[str, Dict], scale: float = 1.0, num_joints: int = 15):
+    if isinstance(json_dir, str):
+        # json_dir is path of keypoints
+        with open(json_dir) as f:
+            annotations = json.load(f)
+            annotations = annotations['annotations']
+    elif isinstance(json_dir, Dict):
+        # json_dir is keypoints_by_id object
+        # id는 한개만 있다고 가정
+
+        _, keypoints = json_dir.popitem()  # id, keypoints
+        annotations = keypoints['annotations']
+        raise NotImplementedError
+
+    else:
+        raise NotImplementedError
+
     motion = []
     for anno in annotations:
         keypoints = anno['keypoints']
@@ -74,7 +86,7 @@ def cocopose2motion(json_dir: str, scale: float = 1.0, num_joints: int = 15):
 
 
 def compute_motion_embedding(
-    skeletons_json_path: str,
+    skeletons_json_path: Union[str, Dict],
     similarity_analyzer: SimilarityAnalyzer,
     mean_pose_bpe: np.ndarray,
     std_pose_bpe: np.ndarray,
@@ -82,7 +94,10 @@ def compute_motion_embedding(
     video_window_size: int = 16,
     video_stride: int = 2,
     device: str = 'cuda') -> List[List[np.ndarray]]:
-
+    """
+    Params
+    skeletons_json_path: keypoints_by_id 객체 또는 해당 객체가 저장된 json 경로
+    """
     seq = cocopose2motion(
         json_dir=skeletons_json_path,
         scale=scale,
@@ -94,7 +109,7 @@ def compute_motion_embedding(
         mean_pose=mean_pose_bpe,
         std_pose=std_pose_bpe,
     )
-
+    
     seq_origin = seq_origin.to(device)
 
     seq_features = similarity_analyzer.get_embeddings(
