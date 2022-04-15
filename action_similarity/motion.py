@@ -25,11 +25,8 @@ def cocopose2motion(json_dir: Union[str, Dict], scale: float = 1.0, num_joints: 
     elif isinstance(json_dir, Dict):
         # json_dir is keypoints_by_id object
         # id는 한개만 있다고 가정
-
         _, keypoints = json_dir.popitem()  # id, keypoints
         annotations = keypoints['annotations']
-        raise NotImplementedError
-
     else:
         raise NotImplementedError
 
