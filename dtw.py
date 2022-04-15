@@ -1,7 +1,8 @@
 import sys
 from math import isinf
+from typing import List
 
-from numpy import array, zeros, full, argmin, inf, ndim, ndarray, array, random
+from numpy import array, zeros, full, argmin, inf, ndim, ndarray, array, random, stack
 from scipy.spatial.distance import cdist
 
 from utils import euclidean_distances
@@ -71,9 +72,17 @@ def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
     assert len(x)
     assert len(y)
     if not isinstance(x, ndarray):
-        x = array(x)
+        # List of ndarray to 2dim ndarray
+        if isinstance(x, List) and isinstance(x[0], ndarray):
+            x = stack(x, axis=0)
+        # lsit to ndarray
+        else:
+            x = array(x)
     if not isinstance(y, ndarray):
-        y = array(y)
+        if isinstance(y, List) and isinstance(y[0], ndarray):
+            y = stack(y, axis=0)
+        else:
+            y = array(y)
     if ndim(x) == 1:
         x = x.reshape(-1, 1)
     if ndim(y) == 1:
