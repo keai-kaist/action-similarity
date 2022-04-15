@@ -12,12 +12,13 @@ def main():
     video_path = './samples/S001C001P001R001A007_rgb.mp4'
     db = ActionDatabase(
         config=config,
-        data_dir=args.data_dir,
         action_label_path='./data/action_label.txt',
-        model_path='./data/model_best.pth.tar',
     )
     print("Compute standard db...")
-    db.compute_standard_action_database(skeleton_path='./data/custom_skeleton')
+    #db.compute_standard_action_database(skeleton_path='./data/custom_skeleton')
+    db.load_database(db_path='./data/embeddings')
+    for action_idx, features in db.db.items():
+        print(db.actions[action_idx], len(features))
     
     print("Extract keypoints...")
     keypoints_by_id = cache_file(video_path, extract_keypoints, 
