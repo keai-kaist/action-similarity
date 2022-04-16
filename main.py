@@ -15,25 +15,18 @@ def main():
         action_label_path='./data/action_label.txt',
     )
     print("Compute standard db...")
-    #db.compute_standard_action_database(skeleton_path='./data/custom_skeleton')
-    db.load_database(db_path='./data/embeddings')
+    db.compute_standard_action_database(
+        skeleton_path='./data/custom_skeleton',
+        data_path=args.data_dir,
+        model_path='./data/model_best.pth.tar',)
     for action_idx, features in db.db.items():
         print(db.actions[action_idx], len(features))
     
     print("Extract keypoints...")
     keypoints_by_id = cache_file(video_path, extract_keypoints, 
         *(video_path,), **{'fps':30,})
-    # file_name = video_path.rstrip(".mp4") + ".pickle"
-    # if os.path.exists(file_name):
-    #     with open(file_name, "rb") as f:
-    #         pickle.load(f)
-    # else:
-    #     keypoints_by_id = extract_keypoints(video_path, fps=30)
-    #     with open(file_name, "wb") as f:
-    #         pickle.dump(keypoints_by_id)
 
     print("Encode motion embeddings...")
-    # compute_motion_embedding로 바꾸기
     seq_features = compute_motion_embedding(
         skeletons_json_path=keypoints_by_id,
         similarity_analyzer=db.similarity_analyzer,
