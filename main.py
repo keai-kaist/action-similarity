@@ -10,9 +10,14 @@ from action_similarity.predictor import Predictor
 def main():
     video_path = './samples/CCTV.mp4'
     video_path = './samples/S001C001P001R001A007_rgb.mp4'
+    #video_path = './custom_data/samples/hand_signal01.mp4'
+    #video_path = './custom_data/samples/jump01.mp4'
+    video_path = './custom_data/samples/squat01.mp4'
+    #video_path = './custom_data/samples/stop01.mp4'
+    
     db = ActionDatabase(
         config=config,
-        action_label_path='./data/action_label.txt',
+        action_label_path='./custom_data/action_label.txt',
     )
     print("Compute standard db...")
     db.compute_standard_action_database(
@@ -38,7 +43,7 @@ def main():
     print("Predict action...")
     predictor = Predictor(config=config, std_db=db)
     action_label, similarity = predictor.predict(seq_features)
-    print(f"Predicted action is {action_label}, and similarity is {similarity}")
+    print(f"Predicted action is {db.actions[action_label]}, and similarity is {similarity}")
 
 if __name__ == '__main__':
 

@@ -113,8 +113,15 @@ class Predictor:
         sorted_actions_by_similarity = [(action, similarity) for similarity, action in sorted(zip(similarities, actions))]
         with open("log.txt", 'w') as f:
             for pair in sorted_actions_by_similarity:
-                print(pair)
-                f.write(f"label: {pair[0]} - similarity: {pair[1]}\n")
+                #print(pair)
+                action_label, similarity = pair
+                print(f"{self.std_db.actions[action_label]}: {similarity}")
+                f.write(f"label: {self.std_db.actions[action_label]} - similarity: {similarity}\n")
+            print()
+            f.write("\n")
+            for action, similarities in similarities_per_actions.items():
+                print(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}")
+                f.write(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}\n")
         #breakpoint()
         # TODO: consider k actions of similarities not only 1. or k-means
         return sorted_actions_by_similarity[0]
