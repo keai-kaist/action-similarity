@@ -124,4 +124,16 @@ class Predictor:
                 f.write(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}\n")
         #breakpoint()
         # TODO: consider k actions of similarities not only 1. or k-means
-        return sorted_actions_by_similarity[0]
+        k = self.config.k_neighbors
+        if k == 1:
+            action_label = sorted_actions_by_similarity[0]
+        else:
+            bin_dict = {}
+            for i in range(k):
+                candidate_label, similarity = sorted_actions_by_similarity[i]
+                if candidate_label not in bin_dict:
+                    bin_dict[candidate_label] = 1
+                else:
+                    bin_dict[candidate_label] += 1
+            action_label = max(bin_dict, key = bin_dict.get)
+        return action_label

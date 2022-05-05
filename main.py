@@ -12,8 +12,8 @@ def main():
     video_path = './samples/S001C001P001R001A007_rgb.mp4'
     #video_path = './custom_data/samples/hand_signal01.mp4'
     #video_path = './custom_data/samples/jump01.mp4'
-    video_path = './custom_data/samples/squat01.mp4'
-    #video_path = './custom_data/samples/stop01.mp4'
+    video_path = './custom_data/testset/001/S002C002P004R001A001.mp4'
+    #video_path = './custom_data0419/samples/stop01.mp4'
     
     db = ActionDatabase(
         config=config,
@@ -28,8 +28,9 @@ def main():
         print(db.actions[action_idx], len(features))
     
     print("Extract keypoints...")
+    #keypoints_by_id = extract_keypoints(video_path, fps=30)
     keypoints_by_id = cache_file(video_path, extract_keypoints, 
-        *(video_path,), **{'fps':30,})
+         *(video_path,), **{'fps':30,})
 
     print("Encode motion embeddings...")
     seq_features = compute_motion_embedding(
@@ -42,14 +43,16 @@ def main():
     
     print("Predict action...")
     predictor = Predictor(config=config, std_db=db)
-    action_label, similarity = predictor.predict(seq_features)
-    print(f"Predicted action is {db.actions[action_label]}, and similarity is {similarity}")
+    action_label = predictor.predict(seq_features)
+    print(f"Predicted action is {db.actions[action_label]}")
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="", required=True, help="path to dataset dir")
+    parser.add_argument('--clustering', type=str, default=None, help="clustering for standard database")
+    parser.add_argument('-k', '--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
     parser.add_argument('--use_flipped_motion', action='store_true',
                         help="whether to use one decoder per one body part")
