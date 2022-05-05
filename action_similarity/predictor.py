@@ -122,11 +122,10 @@ class Predictor:
             for action, similarities in similarities_per_actions.items():
                 print(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}")
                 f.write(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}\n")
-        #breakpoint()
-        # TODO: consider k actions of similarities not only 1. or k-means
+                
         k = self.config.k_neighbors
         if k == 1:
-            action_label = sorted_actions_by_similarity[0]
+            action_label = sorted_actions_by_similarity[0][0]
         else:
             bin_dict = {}
             for i in range(k):
