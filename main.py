@@ -1,7 +1,8 @@
 import argparse
+import time
 
 from bpe import Config
-from utils import cache_file
+from action_similarity.utils import cache_file
 
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
@@ -10,14 +11,20 @@ from action_similarity.predictor import Predictor
 def main():
     video_path = './samples/CCTV.mp4'
     video_path = './samples/S001C001P001R001A007_rgb.mp4'
-    #video_path = './custom_data/samples/hand_signal01.mp4'
-    #video_path = './custom_data/samples/jump01.mp4'
-    video_path = './custom_data/testset/001/S002C002P004R001A001.mp4'
-    #video_path = './custom_data0419/samples/stop01.mp4'
+    #video_path = './data/samples/hand_signal01.mp4'
+    #video_path = './data/samples/jump01.mp4'
+    video_path = './data/testset/001/S002C002P004R001A001.mp4'
+    # video_path = './data/testset/002/S002C003P003R001A002.mp4'
+    # video_path = './data/testset/003/S002C002P004R001A003.mp4'
+    # video_path = './data/testset/004/S002C002P004R001A004.mp4'
+    # video_path = './data/testset/005/S002C003P003R001A005.mp4'
+    # video_path = './data/testset/006/S002C003P002R001A006.mp4'
+    # video_path = './data/testset/007/S002C002P004R001A007.mp4'
+    #video_path = './data0419/samples/stop01.mp4'
     
     db = ActionDatabase(
         config=config,
-        action_label_path='./custom_data/action_label.txt',
+        action_label_path='./data/action_label.txt',
     )
     print("Compute standard db...")
     db.compute_standard_action_database(
@@ -33,6 +40,7 @@ def main():
          *(video_path,), **{'fps':30,})
 
     print("Encode motion embeddings...")
+    start = time.time()
     seq_features = compute_motion_embedding(
         skeletons_json_path=keypoints_by_id,
         similarity_analyzer=db.similarity_analyzer,
@@ -40,11 +48,15 @@ def main():
         std_pose_bpe=db.std_pose_bpe,
         scale=db.scale,
         device=db.config.device,)
+    elapsed =time.time() - start
     
     print("Predict action...")
     predictor = Predictor(config=config, std_db=db)
+    start = time.time()
     action_label = predictor.predict(seq_features)
+    elapsed2 = time.time() - start
     print(f"Predicted action is {db.actions[action_label]}")
+    print('elapsed:', elapsed, elapsed2)
 
 if __name__ == '__main__':
 

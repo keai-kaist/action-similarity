@@ -4,8 +4,7 @@ from typing import List, Dict, Tuple, TYPE_CHECKING
 from tqdm import tqdm
 import numpy as np
 
-from dtw import accelerated_dtw
-from motion_embedding import MotionEmbedding
+from action_similarity.dtw import accelerated_dtw
 
 if TYPE_CHECKING:
     from action_similarity.database import ActionDatabase
@@ -17,7 +16,7 @@ class Predictor:
         self.config = config
         self.std_db = std_db
         self.similarity_analyzer = std_db.similarity_analyzer
-        
+    
     def compute_action_similarities(
         self, 
         anchor: List[List[np.ndarray]]) -> Dict[str, List[float]]:
@@ -52,8 +51,8 @@ class Predictor:
         return similarities_per_actions
 
     def seq_feature_to_motion_embedding(
-            self, 
-            seq_features: List[List[np.ndarray]]) -> List[np.ndarray]:
+        self, 
+        seq_features: List[List[np.ndarray]]) -> List[np.ndarray]:
         seq_features_np = np.array(seq_features, dtype=np.ndarray) # #windows x 5, dtype = ndarray
         seq_features_t = seq_features_np.transpose() # 5 x #windows, dtype = ndarray
         motion_embedding = []
@@ -111,17 +110,13 @@ class Predictor:
         actions = actions_similarities_pair[0]
         similarities = actions_similarities_pair[1]
         sorted_actions_by_similarity = [(action, similarity) for similarity, action in sorted(zip(similarities, actions))]
-        with open("log.txt", 'w') as f:
-            for pair in sorted_actions_by_similarity:
-                #print(pair)
-                action_label, similarity = pair
-                print(f"{self.std_db.actions[action_label]}: {similarity}")
-                f.write(f"label: {self.std_db.actions[action_label]} - similarity: {similarity}\n")
-            print()
-            f.write("\n")
-            for action, similarities in similarities_per_actions.items():
-                print(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}")
-                f.write(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}\n")
+        for pair in sorted_actions_by_similarity:
+            #print(pair)
+            action_label, similarity = pair
+            print(f"{self.std_db.actions[action_label]}: {similarity}")
+        print()
+        for action, similarities in similarities_per_actions.items():
+            print(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}")
                 
         k = self.config.k_neighbors
         if k == 1:

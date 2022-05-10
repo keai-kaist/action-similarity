@@ -5,9 +5,7 @@ from typing import List
 from numpy import array, zeros, full, argmin, inf, ndim, ndarray, array, random, stack
 from scipy.spatial.distance import cdist
 
-from utils import euclidean_distances
-
-def dtw(x, y, dist_fun=euclidean_distances, warp=1, w=inf, s=1.0):
+def dtw(x, y, dist_fun=None, warp=1, w=inf, s=1.0):
     """
     Computes Dynamic Time Warping (DTW) of two sequences.
     :param array x: N1*M array
