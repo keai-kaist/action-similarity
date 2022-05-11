@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import List, Dict, Tuple, TYPE_CHECKING
 from tqdm import tqdm
 import numpy as np
+import torch
 
 from action_similarity.dtw import accelerated_dtw
 
@@ -16,7 +17,18 @@ class Predictor:
         self.config = config
         self.std_db = std_db
         self.similarity_analyzer = std_db.similarity_analyzer
-    
+        self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
+
+    def seq_feature_to_motion_embedding(
+        self, 
+        seq_features: List[List[np.ndarray]]) -> List[np.ndarray]:
+        seq_features_np = np.array(seq_features, dtype=np.ndarray) # #windows x 5, dtype = ndarray
+        seq_features_t = seq_features_np.transpose() # 5 x #windows, dtype = ndarray
+        motion_embedding = []
+        for i in range(len(seq_features_t)):
+            motion_embedding.append(np.stack(seq_features_t[i], axis=0))
+        return motion_embedding # #body part x #windows x #features
+
     def compute_action_similarities(
         self, 
         anchor: List[List[np.ndarray]]) -> Dict[str, List[float]]:
@@ -26,7 +38,8 @@ class Predictor:
         return Dict(str, List(float) similarities: Averages of similarity for each body part between reference motion embedding and each motion embedding of std_db.
         Similarity for each body part is computed by average cosine similarity between the embedding pairs in path. 
         """
-        # use accelerated_dtw
+        # use teslean dtw
+        self.config.similarity_window_size = 1
         similarities_per_actions: Dict[str, List[float]] = {} 
         for action_label, seq_features_list in tqdm(self.std_db.db.items()):
             if not action_label in similarities_per_actions:
@@ -50,16 +63,6 @@ class Predictor:
                 similarities_per_actions[action_label].append(similarity)
         return similarities_per_actions
 
-    def seq_feature_to_motion_embedding(
-        self, 
-        seq_features: List[List[np.ndarray]]) -> List[np.ndarray]:
-        seq_features_np = np.array(seq_features, dtype=np.ndarray) # #windows x 5, dtype = ndarray
-        seq_features_t = seq_features_np.transpose() # 5 x #windows, dtype = ndarray
-        motion_embedding = []
-        for i in range(len(seq_features_t)):
-            motion_embedding.append(np.stack(seq_features_t[i], axis=0))
-        return motion_embedding # #body part x #windows x #features
-
     def compute_action_similarities2(
         self, 
         anchor: List[List[np.ndarray]]) -> Dict[str, List[float]]:
@@ -81,11 +84,19 @@ class Predictor:
                 motion_embedding = self.seq_feature_to_motion_embedding(seq_features)
                 similarity_per_body_part = []
                 for i in range(len(motion_embedding_anchor)): # equal to # body part
-                    body_part_similarity, _, _, _ = accelerated_dtw(
+                    _, _, _, path = accelerated_dtw(
                         motion_embedding_anchor[i], 
                         motion_embedding[i], 
-                        dist_fun='cosine')
-                    similarity_per_body_part.append(body_part_similarity)
+                        dist_fun='euclidean')
+                    path = [(x, y) for x, y in zip(path[0], path[1])] 
+                    similarities_per_path = []
+                    for j in range(len(path)):
+                        #breakpoint()
+                        cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][path[j][0]]),
+                                                    torch.Tensor(motion_embedding[i][path[j][1]])).numpy()
+                        similarities_per_path.append(cosine_sim)
+                    total_path_similarity = sum(similarities_per_path) / len(path)
+                    similarity_per_body_part.append(total_path_similarity)
                 #breakpoint()
                 similarity = np.mean(similarity_per_body_part)
                 similarities_per_actions[action_label].append(similarity)
@@ -109,7 +120,7 @@ class Predictor:
             actions_similarities_pair[1].extend(similarities) # similarities
         actions = actions_similarities_pair[0]
         similarities = actions_similarities_pair[1]
-        sorted_actions_by_similarity = [(action, similarity) for similarity, action in sorted(zip(similarities, actions))]
+        sorted_actions_by_similarity = [(action, similarity) for similarity, action in sorted(zip(similarities, actions), reverse=True)]
         for pair in sorted_actions_by_similarity:
             #print(pair)
             action_label, similarity = pair
