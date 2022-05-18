@@ -109,7 +109,7 @@ def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
     else:
         path = _traceback(D0)
     n_steps = len(path[0])
-    return D1[-1, -1]/n_steps, C, D1, path #mean of dist, cost, acc, path
+    return D1[-1, -1], C, D1, path #mean of dist, cost, acc, path
 
 def _traceback(D):
     i, j = array(D.shape) - 2
@@ -127,9 +127,11 @@ def _traceback(D):
         q.insert(0, j)
     return array(p), array(q)
 
-
-if __name__ == '__main__':
+def test():
+    import numpy as np
     
+    from tslearn.metrics import dtw_path
+
     if len(sys.argv) == 1:
         x = random.rand(8, 64)
         y = random.rand(8, 64)
@@ -141,8 +143,15 @@ if __name__ == '__main__':
         x = [[1, 0], [0, 1], [1, 1], [1, 2], [2, 2], [4, 3], [2, 3], [1, 1], [2, 2], [0, 1]]
         y = [[1, 0], [1, 1], [1, 1], [2, 1], [4, 3], [4, 3], [2, 3], [3, 1], [1, 2], [1, 0]]
     
-
-    dist, cost, acc, path = accelerated_dtw(x, y, dist_fun='cosine')
+    path, dist = dtw_path(np.array(x), np.array(y))
+    print(path, dist)
+    
+    #dist, cost, acc, path = accelerated_dtw(x, y, dist_fun='cosine')
+    dist, cost, acc, path = accelerated_dtw(x, y, dist_fun='euclidean')
+    #print(path)
+    x_list, y_list = path[0], path[1]
+    path = [(x, y) for x, y in zip(x_list, y_list)]
+    print(path, dist)
     # Vizualize
     from matplotlib import pyplot as plt
     plt.imshow(cost.T, origin='lower', cmap=plt.cm.Reds, interpolation='nearest')
@@ -154,3 +163,7 @@ if __name__ == '__main__':
     plt.axis('tight')
     plt.title('Minimum distance: {}'.format(dist))
     plt.show()
+
+if __name__ == '__main__':
+    test()
+    
