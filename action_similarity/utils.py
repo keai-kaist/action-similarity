@@ -1,9 +1,12 @@
 import os
-import pickle
 import re
+import pickle
+import time
 from typing import List
-from action_similarity.dtw import accelerated_dtw
+
 import numpy as np
+
+from action_similarity.dtw import accelerated_dtw
 
 def parse_action_label(action_label):
     actions = {}

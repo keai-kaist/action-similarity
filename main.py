@@ -25,54 +25,41 @@ def main():
     #video_path = './data0419/samples/stop01.mp4'
     
     timer = Timer()
-
     timer.log("DB")
+    print("Compute standard db...")
     db = ActionDatabase(
         config=config,
         action_label_path='./data/action_label.txt',
     )
-    print("Compute standard db...")
     db.compute_standard_action_database(
         skeleton_path='./data/custom_skeleton',
         data_path=args.data_dir,
-        model_path='./data/model_best.pth.tar',)
+        model_path='./data/model_best.pth.tar',
+        config=config)
     for action_idx, features in db.db.items():
         print(db.actions[action_idx], len(features))
+
     timer.log("Kepoint")    
     print("Extract keypoints...")
     #keypoints_by_id = extract_keypoints(video_path, fps=30)
     keypoints_by_id = cache_file(video_path, extract_keypoints, 
          *(video_path,), **{'fps':30,})
 
-    timer.log("Encode") 
-    print("Encode motion embeddings...")
-    start = time.time()
-    seq_features = compute_motion_embedding(
-        skeletons_json_path=keypoints_by_id,
-        similarity_analyzer=db.similarity_analyzer,
-        mean_pose_bpe=db.mean_pose_bpe,
-        std_pose_bpe=db.std_pose_bpe,
-        scale=db.scale,
-        device=db.config.device,)
-    elapsed = time.time() - start
-    
-    timer.log("predict") 
-
     print("Predict action...")
-    predictor = Predictor(config=config, std_db=db)
-    start = time.time()
-    action_label, similarities_per_actions = predictor.predict(seq_features)
-    elapsed2 = time.time() - start
+    timer.log("predict") 
+    predictor = Predictor(
+        config=config, 
+        model_path='./data/model_best.pth.tar',
+        std_db=db)
+    action_label, similarities_per_actions = predictor.predict(keypoints_by_id)
 
+    # print results
     for action, similarities in similarities_per_actions.items():
         print(f"mean similarity of {predictor.std_db.actions[action]}: {np.mean(similarities)}")
     timer.log() 
     print(f"Predicted action is {db.actions[action_label]}")
-    print('elapsed:', elapsed, elapsed2)
     timer.pprint()
 
-
-    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
