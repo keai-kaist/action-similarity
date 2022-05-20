@@ -15,7 +15,6 @@ setup(
         'numpy',
         'scipy',
         'tqdm',
-        'glob',
         'more-itertools',
         'tslearn',
         'opencv-python',
