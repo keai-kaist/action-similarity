@@ -1,9 +1,11 @@
 import argparse
 import time
+from typing import List
+
+import numpy as np
 
 from bpe import Config
-from action_similarity.utils import cache_file
-
+from action_similarity.utils import cache_file, Timer
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
@@ -22,6 +24,9 @@ def main():
     # video_path = './data/testset/007/S002C002P004R001A007.mp4'
     #video_path = './data0419/samples/stop01.mp4'
     
+    timer = Timer()
+
+    timer.log("DB")
     db = ActionDatabase(
         config=config,
         action_label_path='./data/action_label.txt',
@@ -33,12 +38,13 @@ def main():
         model_path='./data/model_best.pth.tar',)
     for action_idx, features in db.db.items():
         print(db.actions[action_idx], len(features))
-    
+    timer.log("Kepoint")    
     print("Extract keypoints...")
     #keypoints_by_id = extract_keypoints(video_path, fps=30)
     keypoints_by_id = cache_file(video_path, extract_keypoints, 
          *(video_path,), **{'fps':30,})
 
+    timer.log("Encode") 
     print("Encode motion embeddings...")
     start = time.time()
     seq_features = compute_motion_embedding(
@@ -48,23 +54,33 @@ def main():
         std_pose_bpe=db.std_pose_bpe,
         scale=db.scale,
         device=db.config.device,)
-    elapsed =time.time() - start
+    elapsed = time.time() - start
     
+    timer.log("predict") 
+
     print("Predict action...")
     predictor = Predictor(config=config, std_db=db)
     start = time.time()
-    action_label = predictor.predict(seq_features)
+    action_label, similarities_per_actions = predictor.predict(seq_features)
     elapsed2 = time.time() - start
+
+    for action, similarities in similarities_per_actions.items():
+        print(f"mean similarity of {predictor.std_db.actions[action]}: {np.mean(similarities)}")
+    timer.log() 
     print(f"Predicted action is {db.actions[action_label]}")
     print('elapsed:', elapsed, elapsed2)
+    timer.pprint()
 
+
+    
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="", required=True, help="path to dataset dir")
-    parser.add_argument('--clustering', type=str, default=None, help="clustering for standard database")
-    parser.add_argument('-k', '--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
+    #parser.add_argument('--clustering', type=str, default=None, help="clustering for standard database")
+    parser.add_argument('--k_neighbers', type=int, default=1, help="number of neighbors to use for KNN")
+    parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
     parser.add_argument('--use_flipped_motion', action='store_true',
                         help="whether to use one decoder per one body part")
