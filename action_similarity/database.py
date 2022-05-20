@@ -39,7 +39,10 @@ class ActionDatabase():
         if not self.config.update:
             height, width = 1080, 1920
             h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
-            embeddings_dir = os.path.join(data_path, 'embeddings')
+            if self.config.clustering:
+                embeddings_dir = os.path.join(data_path, f'embeddings_k={self.config.k_clusters}')
+            else:
+                embeddings_dir = os.path.join(data_path, 'embeddings')
             print(f"[db] Load motion embedding from {embeddings_dir}...")
             self.db = {}
             for embedding_file in glob(f'{embeddings_dir}/*'):
