@@ -19,21 +19,19 @@ class ActionDatabase():
 
     def __init__(
         self,
-        config: Config,
-        action_label_path: str,
+        config: Config = None,
+        action_label_path: str = None,
     ):
-        self.config = config
-        self.actions = parse_action_label(action_label_path)
         self.db = {}
-
-        self.scale = None
 
     def compute_standard_action_database(
         self, 
         skeleton_path: str, 
         data_path: str,
-        model_path: str
+        model_path: str,
+        config: Config = None,
     ):
+        self.config = config
         self.similarity_analyzer = SimilarityAnalyzer(self.config, model_path)
         self.mean_pose_bpe = np.load(os.path.join(data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(data_path, 'stdpose_rc_with_view_unit64.npy'))
@@ -94,9 +92,10 @@ class ActionDatabase():
                     # 64 * (T=16 / 8), 128 * (T=16 / 8)
                     pickle.dump(seq_features, f)
 
-    def load_database(self, db_path: str):
+    def load_database(self, database_path: str, label_path: str):
         self.db = {}
-        for db_filename in glob(db_path + '/*.pickle'):
+        self.actions = parse_action_label(label_path)
+        for db_filename in glob(database_path + '/*.pickle'):
             db_basename, _ = os.path.splitext(os.path.basename(db_filename))
             # 'action_embeddings_001' --> '001' --> 1
             action_idx = int(db_basename.split('_')[-1])
