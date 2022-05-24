@@ -1,5 +1,6 @@
 from __future__ import annotations 
 
+import os
 from typing import List, Dict, Tuple, TYPE_CHECKING
 from matplotlib.pyplot import jet
 from tqdm import tqdm
@@ -7,8 +8,12 @@ import numpy as np
 import torch
 from scipy.spatial.distance import cosine
 
+from bpe.similarity_analyzer import SimilarityAnalyzer
+from bpe.functional.utils import pad_to_height
+
 from action_similarity.dtw import accelerated_dtw
 from action_similarity.utils import seq_feature_to_motion_embedding, time_align
+from action_similarity.motion import compute_motion_embedding
 
 if TYPE_CHECKING:
     from action_similarity.database import ActionDatabase
@@ -16,12 +21,23 @@ if TYPE_CHECKING:
 
 
 class Predictor:
-    def __init__(self, config: Config, std_db: ActionDatabase):
+    def __init__(
+        self, 
+        config: Config, 
+        model_path:str,
+        std_db: ActionDatabase
+    ):
         self.config = config
         self.std_db = std_db
+        self.data_path = self.config.data_dir
         self.similarity_analyzer = std_db.similarity_analyzer
+        self.similarity_analyzer = SimilarityAnalyzer(self.config, model_path)
+        self.mean_pose_bpe = np.load(os.path.join(self.data_path, 'meanpose_rc_with_view_unit64.npy'))
+        self.std_pose_bpe = np.load(os.path.join(self.data_path, 'stdpose_rc_with_view_unit64.npy'))
         self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
-        # self.cosine_score = cosine
+        height, width = 1080, 1920
+        h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
+            
 
     def compute_action_similarities(
         self, 
@@ -140,6 +156,21 @@ class Predictor:
         return similarities_per_actions
 
     def predict(
+        self,
+        keypoints_by_id: Dict[str, List[Dict]]):
+        
+        seq_features = compute_motion_embedding(
+            skeletons_json_path=keypoints_by_id,
+            similarity_analyzer=self.similarity_analyzer,
+            mean_pose_bpe=self.mean_pose_bpe,
+            std_pose_bpe=self.std_pose_bpe,
+            scale=self.scale,
+            device=self.config.device,)
+        action_label, score, similarities_per_actions = self._predict(seq_features)
+
+        return action_label, similarities_per_actions
+
+    def _predict(
         self, 
         motion_embedding: List[List[np.ndarray]]) -> Tuple[str, float]:
         """
@@ -149,6 +180,7 @@ class Predictor:
         Predict action based on similarities.
         The action that has the least similarity between reference motion embedding and std_db is determined.  
         """
+
         if self.config.clustering:
             similarities_per_actions = self.compute_action_similarities_k(motion_embedding)
         else:
@@ -172,13 +204,18 @@ class Predictor:
         k = self.config.k_neighbors
         if k == 1:
             action_label = sorted_actions_by_similarity[0][0]
+            score = sorted_actions_by_similarity[1][0]
         else:
             bin_dict = {}
+            score_dict = {}
             for i in range(k):
                 candidate_label, similarity = sorted_actions_by_similarity[i]
                 if candidate_label not in bin_dict:
                     bin_dict[candidate_label] = 1
+                    score_dict[candidate_label] = [similarity]
                 else:
                     bin_dict[candidate_label] += 1
+                    score_dict[candidate_label].append(similarity)
             action_label = max(bin_dict, key = bin_dict.get)
-        return action_label, similarities_per_actions
+            score = np.mean(score_dict[action_label])
+        return action_label, score, similarities_per_actions

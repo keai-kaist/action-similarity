@@ -23,6 +23,7 @@ class ActionDatabase():
         action_label_path: str = None,
     ):
         self.db = {}
+        self.action_label_path = action_label_path
 
     def compute_standard_action_database(
         self, 
@@ -35,7 +36,8 @@ class ActionDatabase():
         self.similarity_analyzer = SimilarityAnalyzer(self.config, model_path)
         self.mean_pose_bpe = np.load(os.path.join(data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(data_path, 'stdpose_rc_with_view_unit64.npy'))
-    
+
+        self.actions = parse_action_label(self.action_label_path)
         if not self.config.update:
             height, width = 1080, 1920
             h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
