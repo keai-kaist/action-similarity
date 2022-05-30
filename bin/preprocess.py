@@ -11,20 +11,11 @@ import numpy as np
 from bpe import Config
 from bpe.functional.utils import pad_to_height
 from bpe.similarity_analyzer import SimilarityAnalyzer
-from action_similarity.utils import cache_file, save_embeddings, exist_embeddings
+from action_similarity.utils import cache_file, save_embeddings, exist_embeddings, take_best_id
 
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
-
-def take_best_id(keypoints_by_id: Dict[str, List[Dict]]):
-    max_id = -1
-    max_len = -1
-    for id, annotations in keypoints_by_id.items():
-        if len(annotations) > max_len:
-            max_len = len(annotations)
-            max_id = id
-    return max_id
 
 def main(config: Config):
     # from video to embeddings

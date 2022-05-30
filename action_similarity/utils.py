@@ -124,6 +124,15 @@ def exist_embeddings(config: Config = None, embeddings_dir = "embeddings"):
             exist_flags.append(k_clusters in seq_features_per_k)
     return all(exist_flags)
 
+def take_best_id(keypoints_by_id: Dict[str, List[Dict]]):
+    max_id = -1
+    max_len = -1
+    for id, annotations in keypoints_by_id.items():
+        if len(annotations) > max_len:
+            max_len = len(annotations)
+            max_id = id
+    return max_id
+
 
 class Timer():
     def __init__(self):
