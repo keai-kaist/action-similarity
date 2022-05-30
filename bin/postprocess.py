@@ -15,7 +15,7 @@ from bpe.similarity_analyzer import SimilarityAnalyzer
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
-from action_similarity.utils import cache_file, seq_feature_to_motion_embedding, time_align
+from action_similarity.utils import exist_embeddings, load_embeddings, seq_feature_to_motion_embedding, time_align, save_embeddings
 from action_similarity.dtw import accelerated_dtw
 
 def list_transpose(x: List[List]) -> List[List]:
@@ -35,27 +35,23 @@ def motion_embeddings_to_embedding_per_bodypart(
     return embedding_per_bodypart
 
 def main(config: Config):
+    # from embeddings to k-clustered embeddings
     # video_path = "custom_data/videos"
     # skeleton_path = "custom_data/custom_skeleton"
     # embedding_path = "custom_data/embeddings"
     # embedding_path = "data/embeddings"
-    data_path = 'data'
     k_clusters = config.k_clusters
-    embeddings_dir = os.path.join(data_path, 'embeddings')
-    result_dir = os.path.join(data_path, f'embeddings_k={k_clusters}')
-    assert not os.path.exists(result_dir), f"{result_dir} already exists"
-    print(f"[db] Load motion embedding from {embeddings_dir}...")
+    assert not exist_embeddings(config), f"The embeddings(k = {k_clusters}) already exist"
+    print(f"[db] Load motion embedding...")
+    # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
+    # seq_features: List[List[List[np.ndarray]]]
+    # 64 * (T=16 / 8), 128 * (T=16 / 8)
     database: Dict = {}
-    for embedding_file in glob(f'{embeddings_dir}/*'):
-        with open(embedding_file, 'rb') as f:
-            # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
-            # seq_features: List[List[List[np.ndarray]]]
-            # 64 * (T=16 / 8), 128 * (T=16 / 8)
-            seq_features = pickle.load(f)
-            file_name = os.path.basename(embedding_file).rstrip(".pickle")
-            action_idx = int(file_name.split("_")[-1])
-            database[action_idx] = seq_features
-
+    # load non clustered embeddings
+    config.k_clusters = None
+    database = load_embeddings(config = config)
+    config.k_clusters = k_clusters
+    
     # value: #videos x #body part x (#windows x #features)
     processed_database: Dict = {}
     for action_idx, seq_features in database.items():
@@ -91,9 +87,8 @@ def main(config: Config):
             #kmeans_database[action_idx].append([])
             kmeans_database[action_idx].append(np.stack(seq_k_features, axis=0))
             #print(kmeans_database[action_idx][-1].shape)
-    
-    print(f"[db] save embeddings in {result_dir}...")
-    os.mkdir(result_dir)
+    #os.mkdir(result_dir)
+    std_db = {}
     for action_idx, seq_k_features_per_bp in kmeans_database.items():
         _motion_embeddings = [] # #bodypart x k_clusters x ndarray(#windows x #features)
         for seq_k_features in seq_k_features_per_bp:
@@ -101,15 +96,16 @@ def main(config: Config):
             _seq_k_features = list(_seq_k_features) # #k_clusters x ndarray(#windows x #features)
             _motion_embeddings.append(_seq_k_features)
         motion_embeddings = list_transpose(_motion_embeddings) #k_clusters x #body part x ndarray(#windows x #features)
-
-        embeddings_filename = os.path.join(result_dir, f'action_embeddings_{action_idx:03d}.pickle')
-        with open(embeddings_filename, 'wb') as f:
-            pickle.dump(motion_embeddings, f)
-    # save kmeans_database
+        std_db[action_idx] = motion_embeddings
+    #     embeddings_filename = os.path.join(result_dir, f'action_embeddings_{action_idx:03d}.pickle')
+    #     with open(embeddings_filename, 'wb') as f:
+    #         pickle.dump(motion_embeddings, f)
+    # # save kmeans_database
     # body part x ndarray(#windows x #k_clusters x #features)
     # -> #k_clusters x #body part x ndarray(#windows x #features)
     # or #k_clusters x #windows x #body part x #features
-
+    print(f"[db] save embeddings...")
+    save_embeddings(std_db, config=config)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
