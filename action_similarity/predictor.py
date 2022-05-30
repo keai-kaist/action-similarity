@@ -34,10 +34,10 @@ class Predictor:
         self.similarity_analyzer = SimilarityAnalyzer(self.config, model_path)
         self.mean_pose_bpe = np.load(os.path.join(self.data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(self.data_path, 'stdpose_rc_with_view_unit64.npy'))
-        self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
+        #self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
         height, width = 1080, 1920
         h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
-            
+        self.min_frames = 15
 
     def compute_action_similarities(
         self, 
@@ -101,13 +101,13 @@ class Predictor:
                     path = [(x, y) for x, y in zip(path[0], path[1])] 
                     similarities_per_path = []
                     for j in range(len(path)):
-                        #breakpoint()
-                        cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][path[j][0]]),
-                                                    torch.Tensor(motion_embedding[i][path[j][1]])).numpy()
+                        # cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][path[j][0]]),
+                        #                             torch.Tensor(motion_embedding[i][path[j][1]])).numpy()
+                        cosine_sim = 1-cosine(motion_embedding_anchor[i][path[j][0]], motion_embedding[i][path[j][1]])
+
                         similarities_per_path.append(cosine_sim)
                     total_path_similarity = sum(similarities_per_path) / len(path)
                     similarity_per_body_part.append(total_path_similarity)
-                #breakpoint()
                 similarity = np.mean(similarity_per_body_part)
                 similarities_per_actions[action_label].append(similarity)
         return similarities_per_actions
@@ -140,13 +140,11 @@ class Predictor:
                 similarity_per_body_part = []
                 for i in range(len(motion_embedding_aligned)): # equal to # body part
                     similarities = []
-                    for j in range(len(motion_embedding_aligned[i])):
-                        #breakpoint()
-                        #print("motion_embedding_aligned:", len(motion_embedding_aligned), len(motion_embedding_aligned[i]), motion_embedding_aligned[i][j].shape)
-                        #print("motion_embedding:",len(motion_embedding), len(motion_embedding[i]), motion_embedding[i][j].shape)
-                        
-                        cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_aligned[i][j]),
-                                                    torch.Tensor(motion_embedding[i][j])).numpy()
+                    for j in range(len(motion_embedding_aligned[i])):                        
+                        # cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_aligned[i][j]),
+                        #                             torch.Tensor(motion_embedding[i][j])).numpy()
+                        cosine_sim = 1-cosine(motion_embedding_aligned[i][j], motion_embedding[i][j])
+
                         similarities.append(cosine_sim)
                     total_path_similarity = sum(similarities) / len(motion_embedding_aligned[i])
                     similarity_per_body_part.append(total_path_similarity)
@@ -155,20 +153,55 @@ class Predictor:
                 similarities_per_actions[action_label].append(similarity)
         return similarities_per_actions
 
+    def make_prediction(
+        self,
+        id: int,
+        annotations: List[Dict],
+        action_label: str,
+        score: float):
+
+        prediction = {}
+        prediction['id'] = id
+        prediction['predictions'] = {}
+        # 예측에 사용한 첫번째 프레임의 정보
+        prediction['predictions']['frame'] = annotations[0]['frame']
+        prediction['predictions']['box'] = annotations[0]['keypoints']['box']
+        prediction['predictions']['score'] = annotations[0]['keypoints']['score']
+        prediction['predictions']['actions'] = []
+        action = {'label': action_label, 'score': score}
+        prediction['predictions']['actions'].append(action)
+        return prediction
+
+    def valid_frames(
+        self,
+        annotations: List[Dict]):
+        return len(annotations) >= self.min_frames
+        
     def predict(
         self,
         keypoints_by_id: Dict[str, List[Dict]]):
         
-        seq_features = compute_motion_embedding(
-            skeletons_json_path=keypoints_by_id,
-            similarity_analyzer=self.similarity_analyzer,
-            mean_pose_bpe=self.mean_pose_bpe,
-            std_pose_bpe=self.std_pose_bpe,
-            scale=self.scale,
-            device=self.config.device,)
-        action_label, score, similarities_per_actions = self._predict(seq_features)
-
-        return action_label, similarities_per_actions
+        # keypoints_by_id 거르는 함수, 양식 맞추는 함수 필요
+        predictions = []
+        action_label_per_id = {}
+        similarities_per_id = {}
+        for id, annotations in keypoints_by_id.items():
+            if not self.valid_frames(annotations):
+                continue
+            seq_features = compute_motion_embedding(
+                annotations=annotations,
+                similarity_analyzer=self.similarity_analyzer,
+                mean_pose_bpe=self.mean_pose_bpe,
+                std_pose_bpe=self.std_pose_bpe,
+                scale=self.scale,
+                device=self.config.device,)
+            action_label, score, similarities_per_actions = self._predict(seq_features)
+            prediction = self.make_prediction(id, annotations, action_label, score)
+            predictions.append(prediction)
+            action_label_per_id[id] = action_label
+            similarities_per_id[id] = similarities_per_actions
+            
+        return predictions, action_label_per_id, similarities_per_id
 
     def _predict(
         self, 

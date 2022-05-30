@@ -80,10 +80,63 @@ def cocopose2motion(json_dir: Union[str, Dict], scale: float = 1.0, num_joints: 
     motion = motion * scale
 
     return motion
+    
+def custompose2motion(annotations: List[Dict], scale: float = 1.0, num_joints: int = 15):
+    assert isinstance(annotations, List), f"type of input should be list but, {type(annotations)}"
 
+    motion = []
+    for anno in annotations:
+        keypoints = anno['keypoints']
+        nose = np.array([keypoints['nose']['x'], keypoints['nose']['y']])
+        right_shoulder = np.array([keypoints['right_shoulder']['x'], keypoints['right_shoulder']['y']])
+        right_elbow = np.array([keypoints['right_elbow']['x'], keypoints['right_elbow']['y']])
+        right_wrist = np.array([keypoints['right_wrist']['x'], keypoints['right_wrist']['y']])
+        left_shoulder = np.array([keypoints['left_shoulder']['x'], keypoints['left_shoulder']['y']])
+        left_elbow = np.array([keypoints['left_elbow']['x'], keypoints['left_elbow']['y']])
+        left_wrist = np.array([keypoints['left_wrist']['x'], keypoints['left_wrist']['y']])
+        right_hip = np.array([keypoints['right_hip']['x'], keypoints['right_hip']['y']])
+        right_knee = np.array([keypoints['right_knee']['x'], keypoints['right_knee']['y']])
+        right_ankle = np.array([keypoints['right_ankle']['x'], keypoints['right_ankle']['y']])
+        left_hip = np.array([keypoints['left_hip']['x'], keypoints['left_hip']['y']])
+        left_knee = np.array([keypoints['left_knee']['x'], keypoints['left_knee']['y']])
+        left_ankle = np.array([keypoints['left_ankle']['x'], keypoints['left_ankle']['y']])
+        neck = (right_shoulder + left_shoulder) / 2
+        mid_hip = (right_hip + left_hip) / 2
+
+        joint = np.array([
+            nose,
+            neck,
+            right_shoulder,
+            right_elbow,
+            right_wrist,
+            left_shoulder,
+            left_elbow,
+            left_wrist,
+            mid_hip,
+            right_hip,
+            right_knee,
+            right_ankle,
+            left_hip,
+            left_knee,
+            left_ankle,
+        ])
+        if len(motion) > 0:
+            joint[np.where(joint == 0)] = motion[-1][np.where(joint == 0)]
+        motion.append(joint)
+    
+    for i in range(len(motion) - 1, 0, -1):
+        motion[i - 1][np.where(motion[i - 1] == 0)] = motion[i][np.where(motion[i - 1] == 0)]
+    motion = np.array(motion)
+    motion = np.stack(motion, axis=2)
+
+    motion = gaussian_filter1d(motion, sigma=2, axis=-1)
+    # TODO: check mean_height available
+    motion = motion * scale
+
+    return motion
 
 def compute_motion_embedding(
-    skeletons_json_path: Union[str, Dict],
+    annotations: List[Dict],
     similarity_analyzer: SimilarityAnalyzer,
     mean_pose_bpe: np.ndarray,
     std_pose_bpe: np.ndarray,
@@ -94,9 +147,10 @@ def compute_motion_embedding(
     """
     Params
     skeletons_json_path: keypoints_by_id 객체 또는 해당 객체가 저장된 json 경로
+
     """
-    seq = cocopose2motion(
-        json_dir=skeletons_json_path,
+    seq = custompose2motion(
+        annotations=annotations,
         scale=scale,
     )
 
@@ -174,23 +228,24 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
                 'frame': i,
                 'keypoints': keypoints,
             })
+    return keypoints_by_id
 
-    skeletons_by_id = {}
-    for id, keypoints in keypoints_by_id.items():
-        json_filename = f'track_id_{id:03d}.json'
-        with open(os.path.join(json_path, json_filename), 'w') as f:
-            skeletons = {
-                'video': {
-                    'path': os.path.basename(video_path),
-                    'width': clip.w,
-                    'height': clip.h,
-                    'original_length': clip.duration,
-                    'fps': fps,
-                    'track_id': id
-                },
-                'annotations': keypoints
-            }
-            json.dump(skeletons, f, indent=4)
-            skeletons_by_id[id] = skeletons
+    # skeletons_by_id = {}
+    # for id, keypoints in keypoints_by_id.items():
+    #     json_filename = f'track_id_{id:03d}.json'
+    #     with open(os.path.join(json_path, json_filename), 'w') as f:
+    #         skeletons = {
+    #             'video': {
+    #                 'path': os.path.basename(video_path),
+    #                 'width': clip.w,
+    #                 'height': clip.h,
+    #                 'original_length': clip.duration,
+    #                 'fps': fps,
+    #                 'track_id': id
+    #             },
+    #             'annotations': keypoints
+    #         }
+    #         json.dump(skeletons, f, indent=4)
+    #         skeletons_by_id[id] = skeletons
 
-    return skeletons_by_id
+    # return skeletons_by_id
