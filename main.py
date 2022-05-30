@@ -5,7 +5,7 @@ from typing import List
 import numpy as np
 
 from bpe import Config
-from action_similarity.utils import cache_file, Timer
+from action_similarity.utils import cache_file, Timer, save_file
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
@@ -51,13 +51,19 @@ def main():
         config=config, 
         model_path='./data/model_best.pth.tar',
         std_db=db)
-    action_label, similarities_per_actions = predictor.predict(keypoints_by_id)
+    predictions, action_label_per_id, similarities_per_id = predictor.predict(keypoints_by_id)
 
     # print results
-    for action, similarities in similarities_per_actions.items():
-        print(f"mean similarity of {predictor.std_db.actions[action]}: {np.mean(similarities)}")
-    timer.log() 
-    print(f"Predicted action is {db.actions[action_label]}")
+    for id in action_label_per_id:
+        print("[id] result:")
+        action_label = action_label_per_id[id]
+        similarities_per_actions = similarities_per_id[id]
+        for action, similarities in similarities_per_actions.items():
+            print(f"mean similarity of {predictor.std_db.actions[action]}: {np.mean(similarities)}")
+        timer.log() 
+        print(f"Predicted action is {db.actions[action_label]}")
+        print(f"Predictions:\n{predictions}")
+        print()
     timer.pprint()
 
 if __name__ == '__main__':
