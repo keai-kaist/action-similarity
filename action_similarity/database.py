@@ -6,14 +6,14 @@ import pickle
 import numpy as np
 from glob import glob
 from tqdm import tqdm
+from pathlib import Path
 
 from bpe import Config
 from bpe.similarity_analyzer import SimilarityAnalyzer
-
 from bpe.functional.utils import pad_to_height
 
-from action_similarity.utils import exist_embeddings, parse_action_label, load_embeddings, save_embeddings
-from action_similarity.motion import compute_motion_embedding
+from action_similarity.utils import exist_embeddings, parse_action_label, load_embeddings, save_embeddings, cache_file, take_best_id
+from action_similarity.motion import compute_motion_embedding, extract_keypoints
 
 class ActionDatabase():
 
@@ -27,7 +27,6 @@ class ActionDatabase():
 
     def compute_standard_action_database(
         self, 
-        skeleton_path: str, 
         data_path: str,
         model_path: str,
         config: Config = None,
@@ -49,33 +48,41 @@ class ActionDatabase():
             # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
             # seq_features: List[List[List[np.ndarray]]]
             # 64 * (T=16 / 8), 128 * (T=16 / 8)
-            assert exist_embeddings(config=config), f"The embeddings(k = {config.k_clusters}) not exist"
+            assert exist_embeddings(config=config), f"The embeddings(k = {config.k_clusters}) not exist. "\
+                f"You should run the main with --update or bin.postprocess with --k_clusters option"
             self.db = load_embeddings(config)
                    
         else:
+            print(f"[db] compute motion embedding...")
+            assert not exist_embeddings(config=config), f"The embeddings(k = {config.k_clusters}) already exist. "\
+                "Try again without --update option or remove the embedding files"
+            
             height, width = 1080, 1920
             h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
-            
-            self.db = {}
-            for action_dir in glob(f'{skeleton_path}/*'): 
-                action_idx = int(os.path.basename(os.path.normpath(action_dir)))
+            video_path = Path(config.data_dir) / "videos"
+            for video_dir in glob(f'{video_path}/*'): 
+                action_idx = int(os.path.basename(os.path.normpath(video_dir)))
                 self.db[action_idx] = []
-                print(f'create embeddings of action: {self.actions[action_idx]}...')
-                for skeleton in tqdm(glob(f'{action_dir}/*')):
+                print(f"Current action idx: {action_idx}")
+                for video_filepath in tqdm(glob(f'{video_dir}/*')):
+                    if not video_filepath.endswith(".mp4"):
+                        continue
+                    keypoints_by_id = cache_file(video_filepath, extract_keypoints, 
+                        *(video_filepath,), **{'fps':30,})
+                    #print(video_filepath)
+                    #print(json.dumps(keypoints_by_id, indent = 4))
+                    #breakpoint()
+                    id = take_best_id(keypoints_by_id)
                     seq_features = compute_motion_embedding(
-                        skeletons_json_path=skeleton,
+                        annotations=keypoints_by_id[id],
                         similarity_analyzer=self.similarity_analyzer,
                         mean_pose_bpe=self.mean_pose_bpe,
                         std_pose_bpe=self.std_pose_bpe,
                         scale=self.scale,
-                        device=self.config.device,
+                        device=config.device,
                     )
                     self.db[action_idx].append(seq_features)
-
-            # seq_features.shape == (#videos, #windows, 5, 128 or 256)
-            # seq_features: List[List[List[np.ndarray]]]
-            # 64 * (T=16 / 8), 128 * (T=16 / 8)
-            save_embeddings(self.db, config)
+            save_embeddings(self.db, self.config)
 
     def load_database(self, database_path: str, label_path: str):
         self.db = {}

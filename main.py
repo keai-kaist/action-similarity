@@ -32,8 +32,7 @@ def main():
         action_label_path='./data/action_label.txt',
     )
     db.compute_standard_action_database(
-        skeleton_path='./data/custom_skeleton',
-        data_path=args.data_dir,
+        data_path=config.data_dir,
         model_path='./data/model_best.pth.tar',
         config=config)
     for action_idx, features in db.db.items():
