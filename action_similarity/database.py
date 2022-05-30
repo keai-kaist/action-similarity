@@ -12,7 +12,7 @@ from bpe.similarity_analyzer import SimilarityAnalyzer
 
 from bpe.functional.utils import pad_to_height
 
-from action_similarity.utils import parse_action_label
+from action_similarity.utils import exist_embeddings, parse_action_label, load_embeddings, save_embeddings
 from action_similarity.motion import compute_motion_embedding
 
 class ActionDatabase():
@@ -41,27 +41,17 @@ class ActionDatabase():
         if not self.config.update:
             height, width = 1080, 1920
             h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
-            if self.config.clustering:
-                embeddings_dir = os.path.join(data_path, f'embeddings_k={self.config.k_clusters}')
-            else:
-                embeddings_dir = os.path.join(data_path, 'embeddings')
-            print(f"[db] Load motion embedding from {embeddings_dir}...")
-            self.db = {}
-            for embedding_file in glob(f'{embeddings_dir}/*'):
-                with open(embedding_file, 'rb') as f:
-                    # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
-                    # seq_features: List[List[List[np.ndarray]]]
-                    # 64 * (T=16 / 8), 128 * (T=16 / 8)
-                    seq_features = pickle.load(f)
-                    file_name = os.path.basename(embedding_file).rstrip(".pickle")
-                    action_idx = int(file_name.split("_")[-1])
-                    self.db[action_idx] = seq_features
-                    # TODO: Should remove below line later
-                    # Use only 5 kinds of actions and 6 videos each
-                    # self.db[action_idx] = self.db[action_idx][:6] 
-                    # if len(self.db) > 5:
-                    #     break
-                     
+            # if self.config.clustering:
+            #     embeddings_dir = os.path.join(data_path, f'embeddings_k={self.config.k_clusters}')
+            # else:
+            #     embeddings_dir = os.path.join(data_path, 'embeddings')
+            print(f"[db] Load motion embedding...")
+            # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
+            # seq_features: List[List[List[np.ndarray]]]
+            # 64 * (T=16 / 8), 128 * (T=16 / 8)
+            assert exist_embeddings(config=config), f"The embeddings(k = {config.k_clusters}) not exist"
+            self.db = load_embeddings(config)
+                   
         else:
             height, width = 1080, 1920
             h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
@@ -82,17 +72,10 @@ class ActionDatabase():
                     )
                     self.db[action_idx].append(seq_features)
 
-            embeddings_dir = os.path.join(self.data_dir, 'embeddings')
-            if not os.path.exists(embeddings_dir):
-                os.mkdir(embeddings_dir)
-
-            for action_idx, seq_features in self.db.items():
-                embeddings_filename = os.path.join(embeddings_dir, f'action_embeddings_{action_idx:03d}.pickle')
-                with open(embeddings_filename, 'wb') as f:
-                    # seq_features.shape == (#videos, #windows, 5, 128 or 256)
-                    # seq_features: List[List[List[np.ndarray]]]
-                    # 64 * (T=16 / 8), 128 * (T=16 / 8)
-                    pickle.dump(seq_features, f)
+            # seq_features.shape == (#videos, #windows, 5, 128 or 256)
+            # seq_features: List[List[List[np.ndarray]]]
+            # 64 * (T=16 / 8), 128 * (T=16 / 8)
+            save_embeddings(self.db, config)
 
     def load_database(self, database_path: str, label_path: str):
         self.db = {}
