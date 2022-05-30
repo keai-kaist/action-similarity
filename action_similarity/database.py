@@ -40,10 +40,6 @@ class ActionDatabase():
         if not self.config.update:
             height, width = 1080, 1920
             h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
-            # if self.config.clustering:
-            #     embeddings_dir = os.path.join(data_path, f'embeddings_k={self.config.k_clusters}')
-            # else:
-            #     embeddings_dir = os.path.join(data_path, 'embeddings')
             print(f"[db] Load motion embedding...")
             # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
             # seq_features: List[List[List[np.ndarray]]]
@@ -69,9 +65,7 @@ class ActionDatabase():
                         continue
                     keypoints_by_id = cache_file(video_filepath, extract_keypoints, 
                         *(video_filepath,), **{'fps':30,})
-                    #print(video_filepath)
-                    #print(json.dumps(keypoints_by_id, indent = 4))
-                    #breakpoint()
+
                     id = take_best_id(keypoints_by_id)
                     seq_features = compute_motion_embedding(
                         annotations=keypoints_by_id[id],

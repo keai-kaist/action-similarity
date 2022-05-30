@@ -36,10 +36,6 @@ def motion_embeddings_to_embedding_per_bodypart(
 
 def main(config: Config):
     # from embeddings to k-clustered embeddings
-    # video_path = "custom_data/videos"
-    # skeleton_path = "custom_data/custom_skeleton"
-    # embedding_path = "custom_data/embeddings"
-    # embedding_path = "data/embeddings"
     k_clusters = config.k_clusters
     assert not exist_embeddings(config), f"The embeddings(k = {k_clusters}) already exist"
     print(f"[db] Load motion embedding...")

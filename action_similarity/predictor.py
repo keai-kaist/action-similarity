@@ -227,13 +227,9 @@ class Predictor:
         similarities = actions_similarities_pair[1]
         sorted_actions_by_similarity = [(action, similarity) for similarity, action in sorted(zip(similarities, actions), reverse=True)]
         for pair in sorted_actions_by_similarity:
-            #print(pair)
             action_label, similarity = pair
             print(f"{self.std_db.actions[action_label]}: {similarity}")
-        #print()
-        #for action, similarities in similarities_per_actions.items():
-        #    print(f"mean similarity of {self.std_db.actions[action]}: {np.mean(similarities)}")
-                
+     
         k = self.config.k_neighbors
         if k == 1:
             action_label = sorted_actions_by_similarity[0][0]

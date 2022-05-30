@@ -11,8 +11,6 @@ from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
 
 def main():
-    video_path = './samples/CCTV.mp4'
-    video_path = './samples/S001C001P001R001A007_rgb.mp4'
     #video_path = './data/samples/hand_signal01.mp4'
     #video_path = './data/samples/jump01.mp4'
     video_path = './data/testset/001/S002C002P004R001A001.mp4'
