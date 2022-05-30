@@ -2,9 +2,13 @@ import os
 import re
 import pickle
 import time
-from typing import List
+from typing import List, Dict
+from pathlib import Path
 
 import numpy as np
+from glob import glob
+
+from bpe import Config
 
 from action_similarity.dtw import accelerated_dtw
 
@@ -29,15 +33,29 @@ def seq_feature_to_motion_embedding(
         motion_embedding.append(np.stack(seq_features_t[i], axis=0))
     return motion_embedding # #body part x #windows x #features
 
-def cache_file(file_name: str, func, *args, **kargs):
-    file_name = file_name.rstrip(".mp4") + ".pickle"
-    if os.path.exists(file_name):
-        with open(file_name, "rb") as f:
+def cache_file(file_name: str, func, *args, **kwargs):
+    base_name = Path(".cache") / (os.path.splitext(file_name)[0] + ".pickle")
+    
+    # 디렉토리 생성
+    head, _ = os.path.split(base_name)
+    Path(head).mkdir(parents=True, exist_ok=True)
+    #breakpoint()
+    
+    # cache pickle 생성 또는 불러오기
+    if os.path.exists(base_name):
+        with open(base_name, "rb") as f:
             data = pickle.load(f)
     else:
-        data = func(*args, **kargs)
-        with open(file_name, "wb") as f:
+        data = func(*args, **kwargs)
+        with open(base_name, "wb") as f:
             pickle.dump(data, f)
+    return data
+
+def save_file(file_name: str, func, *args, **kwargs):
+    file_name = os.path.splitext(file_name)[0] + ".pickle"
+    data = func(*args, **kwargs)
+    with open(file_name, "wb") as f:
+        pickle.dump(data, f)
     return data
 
 def time_align(seq1: List[np.ndarray], seq2: List[np.ndarray]):
@@ -50,6 +68,62 @@ def time_align(seq1: List[np.ndarray], seq2: List[np.ndarray]):
             aligned_seq.append(seq2[j])
             last_idx = i
     return seq1, aligned_seq
+
+def save_embeddings(db: Dict, config: Config, embeddings_dir = "embeddings"):
+    k_clusters = config.k_clusters if not config is None and config.clustering else 0
+    embeddings_dir = Path(config.data_dir) / embeddings_dir
+    if not os.path.exists(embeddings_dir):
+        os.mkdir(embeddings_dir)
+
+    for action_idx, seq_features in db.items():
+        embeddings_filename = embeddings_dir / f'action_embeddings_{action_idx:03d}.pickle'
+        # pickle 파일이 이미 있는 경우
+        if os.path.exists(embeddings_filename):
+            with open(embeddings_filename, 'rb') as f:
+                seq_features_by_k = pickle.load(f) # dictionary
+                seq_features_by_k[k_clusters] = seq_features
+        # pickle 파일이 없는 경우 dict로 생성
+        else:
+            seq_features_by_k = {k_clusters: seq_features}
+            
+        with open(embeddings_filename, 'wb') as f:
+            pickle.dump(seq_features_by_k, f)
+
+    with open(embeddings_dir / "readme.md", 'a') as f:
+        f.write(f"K clusters of saved embeddings: {config.k_clusters}\n")
+            
+def load_embeddings(config: Config, embeddings_dir = "embeddings"):
+    k_clusters = config.k_clusters if not config.k_clusters is None and config.clustering else 0
+    embeddings_dir = Path(config.data_dir) / embeddings_dir
+    std_db = {}
+    for embedding_file in glob(f'{embeddings_dir}/*'):
+        if not embedding_file.endswith(".pickle"):
+            continue
+        with open(embedding_file, 'rb') as f:
+            # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
+            # seq_features: List[List[List[np.ndarray]]]
+            # 64 * (T=16 / 8), 128 * (T=16 / 8)
+            seq_features_per_k = pickle.load(f)
+            file_name = os.path.basename(embedding_file).rstrip(".pickle")
+            action_idx = int(file_name.split("_")[-1])
+            std_db[action_idx] = seq_features_per_k[k_clusters]
+    return std_db 
+
+def exist_embeddings(config: Config = None, embeddings_dir = "embeddings"):
+    k_clusters = config.k_clusters if not config is None and config.clustering else 0
+    embeddings_dir = Path(config.data_dir) / embeddings_dir
+    exist_flags = []
+    for embedding_file in glob(f'{embeddings_dir}/*'):
+        if not embedding_file.endswith(".pickle"):
+            continue
+        with open(embedding_file, 'rb') as f:
+            # seq_features.shape == (#videos, #windows, 5, 128[0:4] or 256[4])
+            # seq_features: List[List[List[np.ndarray]]]
+            # 64 * (T=16 / 8), 128 * (T=16 / 8)
+            seq_features_per_k = pickle.load(f)
+            exist_flags.append(k_clusters in seq_features_per_k)
+    return all(exist_flags)
+
 
 class Timer():
     def __init__(self):
