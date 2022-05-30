@@ -1,15 +1,13 @@
 import os
 import base64
 import json
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Union
 import requests
 
 from tqdm import tqdm
 from glob import glob
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
-
-import moviepy.editor as mpy
 
 from bpe.similarity_analyzer import SimilarityAnalyzer
 from bpe.functional.motion import preprocess_motion2d_rc
@@ -185,6 +183,8 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
     # - 한 영상안에 1. 한 사람이, 2. 계속해서 출현하는 것을 가정
     # - track_id 마다 (사람마다) keypoints_sequence 생성
     # - 그런 형식을 만든 다음 연동 방법 강구
+
+    import moviepy.editor as mpy
 
     video_name, _ = os.path.splitext(video_path)
     images_path = os.path.join(video_name, 'images')
