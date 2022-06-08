@@ -24,13 +24,12 @@ class Predictor:
     def __init__(
         self, 
         config: Config, 
-        model_path:str,
+        model_path: str,
         std_db: ActionDatabase
     ):
         self.config = config
         self.std_db = std_db
         self.data_path = self.config.data_dir
-        self.similarity_analyzer = std_db.similarity_analyzer
         self.similarity_analyzer = SimilarityAnalyzer(self.config, model_path)
         self.mean_pose_bpe = np.load(os.path.join(self.data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(self.data_path, 'stdpose_rc_with_view_unit64.npy'))
@@ -228,7 +227,6 @@ class Predictor:
         sorted_actions_by_similarity = [(action, similarity) for similarity, action in sorted(zip(similarities, actions), reverse=True)]
         for pair in sorted_actions_by_similarity:
             action_label, similarity = pair
-            print(f"{self.std_db.actions[action_label]}: {similarity}")
      
         k = self.config.k_neighbors
         if k == 1:
