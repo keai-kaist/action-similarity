@@ -13,8 +13,8 @@ from action_similarity.predictor import Predictor
 def main():
     #video_path = './data/samples/hand_signal01.mp4'
     #video_path = './data/samples/jump01.mp4'
-    video_path = './data/testset/001/S002C002P004R001A001.mp4'
-    # video_path = './data/testset/002/S002C003P003R001A002.mp4'
+    # video_path = './data/testset/001/S002C002P004R001A001.mp4'
+    video_path = './data/testset/002/S002C003P003R001A002.mp4'
     # video_path = './data/testset/003/S002C002P004R001A003.mp4'
     # video_path = './data/testset/004/S002C002P004R001A004.mp4'
     # video_path = './data/testset/005/S002C003P003R001A005.mp4'
@@ -48,7 +48,8 @@ def main():
         config=config, 
         model_path='./data/model_best.pth.tar',
         std_db=db)
-    predictions, action_label_per_id, similarities_per_id = predictor.predict(keypoints_by_id)
+    predictions = predictor.predict(keypoints_by_id)
+    action_label_per_id, similarities_per_id = predictor.info()
 
     # print results
     for id in action_label_per_id:
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="", required=True, help="path to dataset dir")
     #parser.add_argument('--clustering', type=str, default=None, help="clustering for standard database")
-    parser.add_argument('--k_neighbers', type=int, default=1, help="number of neighbors to use for KNN")
+    parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
     parser.add_argument('--use_flipped_motion', action='store_true',

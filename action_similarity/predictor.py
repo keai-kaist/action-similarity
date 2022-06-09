@@ -176,7 +176,10 @@ class Predictor:
         self,
         annotations: List[Dict]):
         return len(annotations) >= self.min_frames
-        
+    
+    def info(self):
+        return self._action_label_per_id, self._similarities_per_id
+
     def predict(
         self,
         keypoints_by_id: Dict[str, List[Dict]]):
@@ -200,8 +203,9 @@ class Predictor:
             predictions.append(prediction)
             action_label_per_id[id] = action_label
             similarities_per_id[id] = similarities_per_actions
-            
-        return predictions, action_label_per_id, similarities_per_id
+        self._action_label_per_id = action_label_per_id
+        self._similarities_per_id = similarities_per_id
+        return predictions
 
     def _predict(
         self, 
@@ -233,7 +237,7 @@ class Predictor:
         k = self.config.k_neighbors
         if k == 1:
             action_label = sorted_actions_by_similarity[0][0]
-            score = sorted_actions_by_similarity[1][0]
+            score = sorted_actions_by_similarity[0][1]
         else:
             bin_dict = {}
             score_dict = {}
