@@ -14,7 +14,7 @@ from action_similarity.dtw import accelerated_dtw
 
 def parse_action_label(action_label):
     actions = {}
-    with open(action_label) as f:
+    with open(action_label, encoding='utf-8') as f:
         lines = f.readlines()
         for line in lines:
             no, action = line.split(None, maxsplit=1)
