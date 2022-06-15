@@ -1,0 +1,36 @@
+# florence bpe
+# python -m experiments.ex02_florence_bpe   
+# use 4 videos each
+macro f1: 0.5337552178798983
+micro f1: 0.5348837209302325
+elasp: 24.914761066436768
+fps: 6.9035380087070175
+
+# florence stgcn
+# python -m experiments.ex03_florence_stgcn --data_dir experiments_data/data_stgcn
+macro f1: 0.5272055240439198
+micro f1: 0.4941860465116279
+elasp: 1.2979240417480469
+fps: 132.51931119817306
+
+# florence triplet
+# python -m experiments.ex03_florence_stgcn --data_dir experiments_data/data_triplet
+macro f1: 0.36303542006337947
+micro f1: 0.3720930232558139
+elasp: 1.2755613327026367
+fps: 134.84259485631276
+
+# florence triplet + recons
+python -m experiments.ex03_florence_recons --data_dir experiments_data\data_recons
+macro f1: 0.5488641384046791
+micro f1: 0.5465116279069767
+elasp: 1.2867517471313477
+fps: 133.66991759168195
+
+# florence only recons
+python -m experiments.ex03_florence_recons --data_dir .\experiments_data\data_recons
+172it [00:01, 133.66it/s]
+macro f1: 0.4578642156697364
+micro f1: 0.43023255813953487
+elasp: 1.2878165245056152
+fps: 133.5593981961287
