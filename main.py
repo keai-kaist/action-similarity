@@ -69,7 +69,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="", required=True, help="path to dataset dir")
-    #parser.add_argument('--clustering', type=str, default=None, help="clustering for standard database")
     parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
@@ -78,7 +77,6 @@ if __name__ == '__main__':
     parser.add_argument('--use_invisibility_aug', action='store_true',
                         help="change random joints' visibility to invisible during training")
     parser.add_argument('--debug', action='store_true', help="limit to 500 frames")
-    parser.add_argument('--update', action='store_true', help="Update database using custom skeleton")
     # related to video processing
     parser.add_argument('--video_sampling_window_size', type=int, default=16,
                         help='window size to use for similarity prediction')
