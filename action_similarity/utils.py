@@ -122,7 +122,7 @@ def exist_embeddings(config: Config = None, embeddings_dir = "embeddings"):
             # 64 * (T=16 / 8), 128 * (T=16 / 8)
             seq_features_per_k = pickle.load(f)
             exist_flags.append(k_clusters in seq_features_per_k)
-    return all(exist_flags)
+    return len(exist_flags) !=0 and all(exist_flags)
 
 def take_best_id(keypoints_by_id: Dict[str, List[Dict]]):
     max_id = -1
