@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import os
 from typing import List, Dict, Tuple, TYPE_CHECKING
-from matplotlib.pyplot import jet
-from tqdm import tqdm
 import numpy as np
 import torch
 from scipy.spatial.distance import cosine
@@ -25,7 +23,7 @@ class Predictor:
         self, 
         config: Config, 
         model_path: str,
-        std_db: ActionDatabase
+        std_db: ActionDatabase,
     ):
         self.config = config
         self.std_db = std_db
@@ -34,8 +32,6 @@ class Predictor:
         self.mean_pose_bpe = np.load(os.path.join(self.data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(self.data_path, 'stdpose_rc_with_view_unit64.npy'))
         #self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
-        height, width = 1080, 1920
-        h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
         self.min_frames = 15
 
     def compute_action_similarities(
@@ -50,7 +46,7 @@ class Predictor:
         # use teslean dtw
         self.config.similarity_window_size = 1
         similarities_per_actions: Dict[str, List[float]] = {} 
-        for action_label, seq_features_list in tqdm(self.std_db.db.items()):
+        for action_label, seq_features_list in self.std_db.db.items():
             if not action_label in similarities_per_actions:
                 similarities_per_actions[action_label] = []
             # body_part_similarities = []
@@ -85,7 +81,7 @@ class Predictor:
         similarities_per_actions: Dict[str, List[float]] = {} 
         motion_embedding_anchor = seq_feature_to_motion_embedding(anchor)
         
-        for action_label, seq_features_list in tqdm(self.std_db.db.items()):
+        for action_label, seq_features_list in self.std_db.db.items():
             if not action_label in similarities_per_actions:
                 similarities_per_actions[action_label] = []
             # body_part_similarities = []
@@ -124,7 +120,7 @@ class Predictor:
         similarities_per_actions: Dict[str, List[float]] = {} 
         # #body part x #windows x #features
         motion_embedding_anchor = seq_feature_to_motion_embedding(anchor)
-        for action_label, seq_features_list in tqdm(self.std_db.db.items()):
+        for action_label, seq_features_list in self.std_db.db.items():
             motion_embedding_aligned = []
             for i in range(len(motion_embedding_anchor)): # #bodypart
                 _, sub_embedding = time_align(seq_features_list[0][i], motion_embedding_anchor[i])
@@ -181,9 +177,11 @@ class Predictor:
 
     def predict(
         self,
-        keypoints_by_id: Dict[str, List[Dict]]):
+        keypoints_by_id: Dict[str, List[Dict]], 
+        height = 1080,
+        width = 1920):
         
-        # keypoints_by_id 거르는 함수, 양식 맞추는 함수 필요
+        h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
         predictions = []
         action_label_per_id = {}
         similarities_per_id = {}
