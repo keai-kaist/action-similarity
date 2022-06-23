@@ -14,12 +14,18 @@ def main():
     #video_path = './data/samples/hand_signal01.mp4'
     #video_path = './data/samples/jump01.mp4'
     # video_path = './data/testset/001/S002C002P004R001A001.mp4'
-    video_path = './data/testset/002/S002C003P003R001A002.mp4'
+    # video_path = './data/testset/002/S002C003P003R001A002.mp4'
     # video_path = './data/testset/003/S002C002P004R001A003.mp4'
     # video_path = './data/testset/004/S002C002P004R001A004.mp4'
     # video_path = './data/testset/005/S002C003P003R001A005.mp4'
     # video_path = './data/testset/006/S002C003P002R001A006.mp4'
     # video_path = './data/testset/007/S002C002P004R001A007.mp4'
+    # video_path = './data/testset/008/S002C001P005R001A008.mp4'
+    # video_path = './data/testset/009/S002C001P005R001A009.mp4'
+    # ideo_path = './data/testset/010/S002C001P005R001A010.mp4'
+    video_path = './data/testset/etc/two.mp4'
+    # video_path = './data/testset/etc/error.mp4'
+    # video_path = './data/videos/012/S001C003P001R001A022_rgb.avi'
     #video_path = './data0419/samples/stop01.mp4'
     
     timer = Timer()
@@ -58,10 +64,10 @@ def main():
         similarities_per_actions = similarities_per_id[id]
         for action, similarities in similarities_per_actions.items():
             print(f"mean similarity of {predictor.std_db.actions[action]}: {np.mean(similarities)}")
-        timer.log() 
         print(f"Predicted action is {db.actions[action_label]}")
         print(f"Predictions:\n{predictions}")
         print()
+    timer.log() 
     timer.pprint()
 
 if __name__ == '__main__':

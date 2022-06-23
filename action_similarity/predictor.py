@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import os
 from typing import List, Dict, Tuple, TYPE_CHECKING
+from threading import Thread, Lock
 import numpy as np
 import torch
 from scipy.spatial.distance import cosine
+import time
 
 from bpe.similarity_analyzer import SimilarityAnalyzer
 from bpe.functional.utils import pad_to_height
@@ -24,6 +26,7 @@ class Predictor:
         config: Config, 
         model_path: str,
         std_db: ActionDatabase,
+        threading: bool = False,
     ):
         self.config = config
         self.std_db = std_db
@@ -31,8 +34,12 @@ class Predictor:
         self.similarity_analyzer = SimilarityAnalyzer(self.config, model_path)
         self.mean_pose_bpe = np.load(os.path.join(self.data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(self.data_path, 'stdpose_rc_with_view_unit64.npy'))
-        #self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
+        self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
         self.min_frames = 15
+        self.predict_lock = Lock()
+        self.similarity_lock = Lock()
+        self.threading = threading
+        self.dynamic_time_warping = time.sleep
 
     def compute_action_similarities(
         self, 
@@ -78,35 +85,89 @@ class Predictor:
         Similarity for each body part is computed by average cosine similarity between the embedding pairs in path. 
         """
         # use accelerated_dtw
-        similarities_per_actions: Dict[str, List[float]] = {} 
+        self.similarities_per_actions: Dict[str, List[float]] = {} 
         motion_embedding_anchor = seq_feature_to_motion_embedding(anchor)
-        
+
         for action_label, seq_features_list in self.std_db.db.items():
-            if not action_label in similarities_per_actions:
-                similarities_per_actions[action_label] = []
+            if not action_label in self.similarities_per_actions:
+                self.similarities_per_actions[action_label] = []
             # body_part_similarities = []
             for seq_features in seq_features_list:
+                # tic1 = time.time()
                 motion_embedding = seq_feature_to_motion_embedding(seq_features)
-                similarity_per_body_part = []
-                for i in range(len(motion_embedding_anchor)): # equal to # body part
-                    _, _, _, path = accelerated_dtw(
-                        motion_embedding_anchor[i], 
-                        motion_embedding[i], 
-                        dist_fun='euclidean')
-                    path = [(x, y) for x, y in zip(path[0], path[1])] 
-                    similarities_per_path = []
-                    for j in range(len(path)):
-                        # cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][path[j][0]]),
-                        #                             torch.Tensor(motion_embedding[i][path[j][1]])).numpy()
-                        cosine_sim = 1-cosine(motion_embedding_anchor[i][path[j][0]], motion_embedding[i][path[j][1]])
-
-                        similarities_per_path.append(cosine_sim)
-                    total_path_similarity = sum(similarities_per_path) / len(path)
-                    similarity_per_body_part.append(total_path_similarity)
-                similarity = np.mean(similarity_per_body_part)
-                similarities_per_actions[action_label].append(similarity)
-        return similarities_per_actions
+                # torch.cuda.synchronize()
+                # toc1 = time.time()
+                # tic2 = time.time()
+                # if self.threading:
+                #     self.predictions = []
+                #     thread_list = []
+                #     for id in valid_ids:
+                #         annotations = keypoints_by_id[id]
+                #         thread = Thread(
+                #             target=self.predict_one, args=(id, annotations, True), daemon=True)
+                #         thread.start()
+                #         thread_list.append(thread)
+                #     for thread in thread_list:
+                #         thread.join()
+                #     predictions = self.predictions
+                # else:
+                #     for id in valid_ids:
+                #         annotations = keypoints_by_id[id]
+                #         prediction = self.predict_one(id, annotations)
+                #         predictions.append(prediction)             
+                #self.similarity_per_body_part = []
+                similarity = self.compute_action_similarity(motion_embedding, motion_embedding_anchor, action_label)
+                # toc2 = time.time()
+                # print(toc1-tic1, toc2-tic2, (toc2-tic2)/(toc1-tic1))
+                #print(similarity)
+                self.similarities_per_actions[action_label].append(similarity)
+        return self.similarities_per_actions
     
+    def compute_action_similarity(self, motion_embedding, motion_embedding_anchor, action_label, void=False):
+        similarity_per_body_part = []
+        for i in range(len(motion_embedding_anchor)): # equal to # body part
+            min_len = min(len(motion_embedding_anchor[i]), len(motion_embedding[i]))
+            total_path_similarity = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][:min_len]),
+                torch.Tensor(motion_embedding[i][:min_len]))
+            
+            #breakpoint()
+            similarity_per_body_part.append(float(total_path_similarity.mean()))
+
+            # print(action_label, len(motion_embedding))
+            # tic1 = time.time()
+
+            if i<2:
+                min_len = min(min_len, 15)
+                _, _, _, path = accelerated_dtw(
+                    motion_embedding_anchor[i][:min_len], 
+                    motion_embedding[i][:min_len], 
+                    dist_fun='euclidean')
+            # toc1 = time.time()
+            # tic2 = time.time()
+            # path = [(x, y) for x, y in zip(path[0], path[1])] 
+            # similarities_per_path = []
+            # for j in range(len(path)):
+            #     cosine_sim = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][path[j][0]]),
+            #                                 torch.Tensor(motion_embedding[i][path[j][1]])).numpy()
+            #     # cosine_sim = 1-cosine(motion_embedding_anchor[i][path[j][0]], motion_embedding[i][path[j][1]])
+
+            #     similarities_per_path.append(cosine_sim)
+            # total_path_similarity = sum(similarities_per_path) / len(path)
+            # similarity_per_body_part.append(total_path_similarity)
+            # # toc2 = time.time()
+            # # print(toc1-tic1, toc2-tic2, (toc2-tic2)/(toc1-tic1))
+        similarity = np.mean(similarity_per_body_part)
+        if void:
+            self.similarities_per_actions[action_label].append(similarity)
+        else:
+            return similarity
+        
+        # if self.threading:
+        #     with self.similarity_lock:
+        #         self.similarity_per_body_part.append(total_path_similarity)
+        # else:
+        #     self.similarity_per_body_part.append(total_path_similarity)
+                    
     def compute_action_similarities_k(
         self, 
         anchor: List[List[np.ndarray]]) -> Dict[str, List[float]]:
@@ -175,36 +236,74 @@ class Predictor:
     def info(self):
         return self._action_label_per_id, self._similarities_per_id
 
+    # def predict(
+    #     self,
+    #     keypoints_by_id: Dict[str, List[Dict]], 
+    #     height = 1080,
+    #     width = 1920):
+    #     predictions = self._predict(keypoints_by_id, height, width)
+
     def predict(
         self,
         keypoints_by_id: Dict[str, List[Dict]], 
         height = 1080,
-        width = 1920):
+        width = 1920,
+        threading = False):
         
         h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
         predictions = []
-        action_label_per_id = {}
-        similarities_per_id = {}
+        
+        # for debug
+        self._action_label_per_id = {}
+        self._similarities_per_id = {}
+
+        valid_ids = []
         for id, annotations in keypoints_by_id.items():
             if not self.valid_frames(annotations):
                 continue
-            seq_features = compute_motion_embedding(
-                annotations=annotations,
-                similarity_analyzer=self.similarity_analyzer,
-                mean_pose_bpe=self.mean_pose_bpe,
-                std_pose_bpe=self.std_pose_bpe,
-                scale=self.scale,
-                device=self.config.device,)
-            action_label, score, similarities_per_actions = self._predict(seq_features)
-            prediction = self.make_prediction(id, annotations, action_label, score)
-            predictions.append(prediction)
-            action_label_per_id[id] = action_label
-            similarities_per_id[id] = similarities_per_actions
-        self._action_label_per_id = action_label_per_id
-        self._similarities_per_id = similarities_per_id
+            valid_ids.append(id)
+        
+        if threading:
+            self.predictions = []
+            thread_list = []
+            for id in valid_ids:
+                annotations = keypoints_by_id[id]
+                thread = Thread(
+                    target=self.predict_one, args=(id, annotations, True), daemon=True)
+                thread.start()
+                thread_list.append(thread)
+            for thread in thread_list:
+                thread.join()
+            predictions = self.predictions
+        else:
+            for id in valid_ids:
+                annotations = keypoints_by_id[id]
+                prediction = self.predict_one(id, annotations)
+                predictions.append(prediction)
         return predictions
 
-    def _predict(
+    def predict_one(self, id, annotations, void = False):
+        print("start")
+        seq_features = compute_motion_embedding(
+            annotations=annotations,
+            similarity_analyzer=self.similarity_analyzer,
+            mean_pose_bpe=self.mean_pose_bpe,
+            std_pose_bpe=self.std_pose_bpe,
+            scale=self.scale,
+            device=self.config.device,)
+        
+        action_label, score, similarities_per_actions = self._predict_one(seq_features)
+        prediction = self.make_prediction(id, annotations, action_label, score)
+        self._action_label_per_id[id] = action_label
+        self._similarities_per_id[id] = similarities_per_actions
+        print("end")
+        if void:
+            with self.predict_lock:
+                self.predictions.append(prediction)
+        else:
+            return prediction
+
+    def _predict_one(
         self, 
         motion_embedding: List[List[np.ndarray]]) -> Tuple[str, float]:
         """
