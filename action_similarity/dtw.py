@@ -103,16 +103,16 @@ def accelerated_dtw(x, y, dist_fun='euclidean', warp=1):
                              D0[i, min(j + k, c)]]
             D1[i, j] += min(min_list)
     if len(x) == 1:
-        path = zeros(len(y)), range(len(y))
+        path = zeros(len(y), dtype=int), range(len(y))
     elif len(y) == 1:
-        path = range(len(x)), zeros(len(x))
+        path = range(len(x)), zeros(len(x), dtype=int)
     else:
         path = _traceback(D0)
     n_steps = len(path[0])
     return D1[-1, -1], C, D1, path #mean of dist, cost, acc, path
 
 def _traceback(D):
-    i, j = array(D.shape) - 2
+    i, j = array(D.shape, dtype=int) - 2
     p, q = [i], [j]
     while (i > 0) or (j > 0):
         tb = argmin((D[i, j], D[i, j + 1], D[i + 1, j]))
