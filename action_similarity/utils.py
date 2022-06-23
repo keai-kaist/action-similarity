@@ -71,7 +71,7 @@ def time_align(seq1: List[np.ndarray], seq2: List[np.ndarray]):
 
 def save_embeddings(db: Dict, config: Config, embeddings_dir = "embeddings"):
     k_clusters = config.k_clusters if not config is None and config.clustering else 0
-    embeddings_dir = Path(config.data_dir) / embeddings_dir
+    # embeddings_dir = Path(config.data_dir) / embeddings_dir
     if not os.path.exists(embeddings_dir):
         os.mkdir(embeddings_dir)
 
@@ -94,7 +94,8 @@ def save_embeddings(db: Dict, config: Config, embeddings_dir = "embeddings"):
             
 def load_embeddings(config: Config, embeddings_dir = "embeddings"):
     k_clusters = config.k_clusters if not config.k_clusters is None and config.clustering else 0
-    embeddings_dir = Path(config.data_dir) / embeddings_dir
+    # embeddings_dir = Path(config.data_dir) / embeddings_dir
+    
     std_db = {}
     for embedding_file in glob(f'{embeddings_dir}/*'):
         if not embedding_file.endswith(".pickle"):
@@ -111,7 +112,7 @@ def load_embeddings(config: Config, embeddings_dir = "embeddings"):
 
 def exist_embeddings(config: Config = None, embeddings_dir = "embeddings"):
     k_clusters = config.k_clusters if not config is None and config.clustering else 0
-    embeddings_dir = Path(config.data_dir) / embeddings_dir
+    # embeddings_dir = Path(config.data_dir) / embeddings_dir
     exist_flags = []
     for embedding_file in glob(f'{embeddings_dir}/*'):
         if not embedding_file.endswith(".pickle"):
