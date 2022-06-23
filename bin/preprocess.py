@@ -41,7 +41,7 @@ def main(config: Config):
         db[action_idx] = []
         print(f"Current action idx: {action_idx}")
         for video_filepath in tqdm(glob(f'{video_dir}/*')):
-            if not video_filepath.endswith(".mp4"):
+            if os.path.splitext(video_filepath)[1] not in ['.mp4', '.avi', '.mkv']:
                 continue
             # print(count)
             # count += 1
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="", required=False, help="path to dataset dir")
-    parser.add_argument('--k_neighbers', type=int, default=1, help="number of neighbors to use for KNN")
+    parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
     parser.add_argument('--use_flipped_motion', action='store_true',
