@@ -194,14 +194,14 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
     os.makedirs(json_path, exist_ok=True)
 
     clip = mpy.VideoFileClip(video_path)
-    for i, timestep in tqdm(enumerate(np.arange(0, clip.duration, 1 / fps))):
+    for i, timestep in enumerate(np.arange(0, clip.duration, 1 / fps)):
         frame_name = os.path.join(images_path, f'frame{i:03d}.jpg')
         clip.save_frame(frame_name, timestep)
 
     tracker_id = None
     url = 'https://brain.keai.io/vision'
     keypoints_by_id = {}
-    for i, filename in enumerate(tqdm(sorted(glob(f'{images_path}/*.jpg')))):
+    for i, filename in enumerate(sorted(glob(f'{images_path}/*.jpg'))):
         with open(filename, 'rb') as input_file:
             image_bytes = input_file.read()
         
@@ -210,6 +210,7 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
                 url=f'{url}/keypoints',
                 json={
                     'image': base64.b64encode(image_bytes).decode(),
+                    'deviceID': 'demo',
                     'tracking': True,
                 })
         else:
@@ -217,10 +218,14 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
                 url=f'{url}/keypoints/{tracker_id}',
                 json={
                     'image': base64.b64encode(image_bytes).decode(),
+                    'deviceID': 'demo',
                 }
             )
         response_json = response.json()
+        #breakpoint()
         for keypoints in response_json['keypoints']:
+            if 'track_id' not in keypoints:
+                continue
             track_id = keypoints['track_id']
             if track_id not in keypoints_by_id:
                 keypoints_by_id[track_id] = []
@@ -228,6 +233,7 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
                 'frame': i,
                 'keypoints': keypoints,
             })
+        tracker_id = response_json['tracker_id']
     return keypoints_by_id
 
     # skeletons_by_id = {}
