@@ -218,14 +218,17 @@ class Predictor:
 
         prediction = {}
         prediction['id'] = id
-        prediction['predictions'] = {}
+        
         # 예측에 사용한 첫번째 프레임의 정보
-        prediction['predictions']['frame'] = annotations[0]['frame']
-        prediction['predictions']['box'] = annotations[0]['keypoints']['box']
-        prediction['predictions']['score'] = annotations[0]['keypoints']['score']
-        prediction['predictions']['actions'] = []
+        first_annotation = annotations[0]
         action = {'label': action_label, 'score': score}
-        prediction['predictions']['actions'].append(action)
+        prediction['predictions'] = [{
+            'frame': first_annotation['frame'],
+            'box': first_annotation['keypoints']['box'],
+            'score': first_annotation['keypoints']['score'],
+            'actions': [action]
+        }]
+        
         return prediction
 
     def valid_frames(
@@ -235,13 +238,6 @@ class Predictor:
     
     def info(self):
         return self._action_label_per_id, self._similarities_per_id
-
-    # def predict(
-    #     self,
-    #     keypoints_by_id: Dict[str, List[Dict]], 
-    #     height = 1080,
-    #     width = 1920):
-    #     predictions = self._predict(keypoints_by_id, height, width)
 
     def predict(
         self,
