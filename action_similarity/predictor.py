@@ -283,7 +283,6 @@ class Predictor:
         return predictions
 
     def predict_one(self, id, annotations, void = False):
-        print("start")
         seq_features = compute_motion_embedding(
             annotations=annotations,
             similarity_analyzer=self.similarity_analyzer,
@@ -296,7 +295,6 @@ class Predictor:
         prediction = self.make_prediction(id, annotations, action_label, score)
         self._action_label_per_id[id] = action_label
         self._similarities_per_id[id] = similarities_per_actions
-        print("end")
         if void:
             with self.predict_lock:
                 self.predictions.append(prediction)
