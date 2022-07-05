@@ -27,7 +27,7 @@ class Predictor:
         model_path: str,
         std_db: ActionDatabase,
         threading: bool = False,
-        threshold: float = 0.75
+        threshold: float = 0.5,
     ):
         self.config = config
         self.std_db = std_db
