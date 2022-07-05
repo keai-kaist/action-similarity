@@ -36,7 +36,7 @@ class Predictor:
         self.mean_pose_bpe = np.load(os.path.join(self.data_path, 'meanpose_rc_with_view_unit64.npy'))
         self.std_pose_bpe = np.load(os.path.join(self.data_path, 'stdpose_rc_with_view_unit64.npy'))
         self.cosine_score = torch.nn.CosineSimilarity(dim=0, eps=1e-50)
-        self.min_frames = 15
+        self.min_frames = 16
         self.predict_lock = Lock()
         self.similarity_lock = Lock()
         self.threading = threading
@@ -263,7 +263,6 @@ class Predictor:
             if not self.valid_frames(annotations):
                 continue
             valid_ids.append(id)
-        
         if threading:
             self.predictions = []
             thread_list = []
@@ -291,7 +290,6 @@ class Predictor:
             std_pose_bpe=self.std_pose_bpe,
             scale=self.scale,
             device=self.config.device,)
-        
         action_label, score, similarities_per_actions = self._predict_one(seq_features)
         prediction = self.make_prediction(id, annotations, action_label, score)
         self._action_label_per_id[id] = action_label
