@@ -1,6 +1,8 @@
 import argparse
 import time
 from typing import List
+from pathlib import Path
+from pprint import pprint
 
 import numpy as np
 
@@ -23,22 +25,23 @@ def main():
     # video_path = './data/testset/008/S002C001P005R001A008.mp4'
     # video_path = './data/testset/009/S002C001P005R001A009.mp4'
     # ideo_path = './data/testset/010/S002C001P005R001A010.mp4'
-    video_path = './data/testset/etc/two.mp4'
+    #video_path = './data/testset/etc/two.mp4'
+    video_path = './data/testset/etc/prts_test001.mp4'
+    
     # video_path = './data/testset/etc/error.mp4'
     # video_path = './data/videos/012/S001C003P001R001A022_rgb.avi'
     #video_path = './data0419/samples/stop01.mp4'
     
+    data_path = Path(config.data_dir)
+
     timer = Timer()
     timer.log("DB")
     print("Compute standard db...")
     db = ActionDatabase(
         config=config,
-        action_label_path='./data/action_label.txt',
+        database_path=data_path / 'embeddings',
+        label_path=data_path / 'action_label.txt',
     )
-    db.compute_standard_action_database(
-        data_path=config.data_dir,
-        model_path='./data/model_best.pth.tar',
-        config=config)
     for action_idx, features in db.db.items():
         print(db.actions[action_idx], len(features))
 
@@ -47,13 +50,12 @@ def main():
     #keypoints_by_id = extract_keypoints(video_path, fps=30)
     keypoints_by_id = cache_file(video_path, extract_keypoints, 
          *(video_path,), **{'fps':30,})
-
     print("Predict action...")
     timer.log("predict") 
     predictor = Predictor(
         config=config, 
         model_path='./data/model_best.pth.tar',
-        std_db=db)
+        std_db=db,)
     predictions = predictor.predict(keypoints_by_id)
     action_label_per_id, similarities_per_id = predictor.info()
 
@@ -65,7 +67,8 @@ def main():
         for action, similarities in similarities_per_actions.items():
             print(f"mean similarity of {predictor.std_db.actions[action]}: {np.mean(similarities)}")
         print(f"Predicted action is {db.actions[action_label]}")
-        print(f"Predictions:\n{predictions}")
+        print(f"Predictions:")
+        pprint(predictions)
         print()
     timer.log() 
     timer.pprint()
@@ -76,6 +79,8 @@ if __name__ == '__main__':
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="", required=True, help="path to dataset dir")
     parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
+    parser.add_argument('--frames', type=int, default=0, help="number of frames to predict")
+    
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
     parser.add_argument('--use_flipped_motion', action='store_true',

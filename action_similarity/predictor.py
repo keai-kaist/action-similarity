@@ -27,6 +27,7 @@ class Predictor:
         model_path: str,
         std_db: ActionDatabase,
         threading: bool = False,
+        threshold: float = 0.75
     ):
         self.config = config
         self.std_db = std_db
@@ -40,6 +41,7 @@ class Predictor:
         self.similarity_lock = Lock()
         self.threading = threading
         self.dynamic_time_warping = time.sleep
+        self.threshold = threshold
 
     def compute_action_similarities(
         self, 
@@ -216,17 +218,20 @@ class Predictor:
         action_label: str,
         score: float):
 
-        prediction = {}
-        prediction['id'] = id
-        
         # 예측에 사용한 첫번째 프레임의 정보
         first_annotation = annotations[0]
-        action = {'label': action_label, 'score': score}
+        prediction = {}
+        prediction['id'] = id
+        if score >= self.threshold:
+            actions = [{'label': action_label, 'score': score}]
+        else:
+            actions = []
+        
         prediction['predictions'] = [{
             'frame': first_annotation['frame'],
             'box': first_annotation['keypoints']['box'],
             'score': first_annotation['keypoints']['score'],
-            'actions': [action]
+            'actions': actions
         }]
         
         return prediction
