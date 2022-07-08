@@ -9,7 +9,8 @@ class ActionDatabase():
         self,
         config: Config,
         database_path: str,
-        label_path: str):
+        label_path: str,
+        target_actions=None):
         assert exist_embeddings(
             config=config, 
             embeddings_dir=database_path), \
@@ -19,5 +20,6 @@ class ActionDatabase():
         self.db = load_embeddings(
             config=config,
             embeddings_dir=database_path,
+            target_actions=target_actions,
         )
         self.actions = parse_action_label(label_path)

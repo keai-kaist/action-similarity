@@ -1,93 +1,107 @@
 import os
-import pickle
 import argparse
+from typing import List
 from pathlib import Path
-from typing import Dict, List
-
+from pprint import pprint
 from glob import glob
-from torch import embedding
-from tqdm import tqdm
+
 import numpy as np
+from tqdm import tqdm
 
 from bpe import Config
-from bpe.functional.utils import pad_to_height
-from bpe.similarity_analyzer import SimilarityAnalyzer
-from action_similarity.utils import cache_file, save_embeddings, exist_embeddings, take_best_id
-
+from action_similarity.utils import cache_file, Timer, save_file
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
 
-def main(config: Config):
-    # from video to embeddings
-    data_dir = Path(args.data_dir)
-    video_path = data_dir/"videos"
-    # skeleton_path = "custom_data/custom_skeleton"
-    # embedding_path = "custom_data/embeddings"
-    data_path = data_dir
-    model_path=data_dir/'model_best.pth.tar'
-    k_clusters = config.k_clusters
-    embedding_dir = Path(config.data_dir) / 'embeddings'
-    #assert not exist_embeddings(config, embeddings_dir=embedding_dir), f"The embeddings(k = {k_clusters}) already exist"
+def main():
+    target_actions = [8,9,10,11,12,13]
+    data_path = Path(config.data_dir)
+    video_path = data_path / "testset"
+    info = {action_idx:[0,0] for action_idx in target_actions}
     
-    height, width = 1080, 1920
-    h1, w1, scale = pad_to_height(config.img_size[0], height, width)
+    timer = Timer()
+    timer.log("DB")
+    print("Compute standard db...")
+    db = ActionDatabase(
+        config=config,
+        database_path=data_path / 'embeddings',
+        label_path=data_path / 'action_label.txt',
+        target_actions=target_actions
+    )
+    for action_idx, features in db.db.items():
+        print(db.actions[action_idx], len(features))
 
-    db: Dict[int, List] = {}
-    similarity_analyzer = SimilarityAnalyzer(config, model_path)
-    mean_pose_bpe = np.load(os.path.join(data_path, 'meanpose_rc_with_view_unit64.npy'))
-    std_pose_bpe = np.load(os.path.join(data_path, 'stdpose_rc_with_view_unit64.npy'))
+    predictor = Predictor(
+        config=config, 
+        model_path='./data/model_best.pth.tar',
+        std_db=db,)
 
-    print("Extract keypoints from videos")
-    for video_dir in glob(f'{video_path}/*'): 
+    for video_dir in glob(f'{video_path}/*'):
+        action_str = os.path.basename(os.path.normpath(video_dir))
+        if not action_str.isdigit(): # 숫자가 아닌 디렉토리인 경우 넘어감
+            continue
         action_idx = int(os.path.basename(os.path.normpath(video_dir)))
-        db[action_idx] = []
+        if action_idx not in target_actions: #
+            continue
         print(f"Current action idx: {action_idx}")
-        for video_filepath in tqdm(glob(f'{video_dir}/*')):
+        #for video_filepath in tqdm(glob(f'{video_dir}/*')):
+        for video_filepath in (glob(f'{video_dir}/*')):
             if os.path.splitext(video_filepath)[1] not in ['.mp4', '.avi', '.mkv']:
                 continue
-            # print(count)
-            # count += 1
-            # if count == 3:
-            #     break
-            if args.fps is None or args.fps=='30':
+            info[action_idx][1] += 1 # 전체 비디오 갯수
+
+            if args.fps is None or args.fps == "30":
                 fps=30
                 pickle_name = video_filepath
             else:
                 fps = int(args.fps)
                 basename, ext = os.path.splitext(video_filepath)
                 pickle_name = basename + f"_{fps}" + ext
-            print(pickle_name)
+            #print(pickle_name)
             keypoints_by_id = cache_file(pickle_name, extract_keypoints, 
                 *(video_filepath,), **{'fps':fps,})
-            #print(video_filepath)
-            #print(json.dumps(keypoints_by_id, indent = 4))
-            #breakpoint()
-            id = take_best_id(keypoints_by_id)
-            seq_features = compute_motion_embedding(
-                annotations=keypoints_by_id[id],
-                similarity_analyzer=similarity_analyzer,
-                mean_pose_bpe=mean_pose_bpe,
-                std_pose_bpe=std_pose_bpe,
-                scale=scale,
-                device=config.device,
-            )
-            if len(seq_features) == 0:
-                print(f"[Warning] length of keypoints is not enough, {len(keypoints_by_id[id])}")
+            for id in keypoints_by_id:
+                print(video_filepath, len(keypoints_by_id[id]))
+            
+            predictions = predictor.predict(keypoints_by_id)
+            if not predictions: # 빈리스트
+                print(f"[Warning] Number of frames lacks, {len(keypoints_by_id[id])}")
+                info[action_idx][1] -= 1 # 전체 비디오 갯수
                 continue
-                
-            db[action_idx].append(seq_features)
-
-    save_embeddings(db, config, embeddings_dir=embedding_dir)
-
+            if len(predictions[0]['predictions'][0]['actions']) == 0:
+                print("[Warning] There is no predicted actions")
+                pprint(predictions)
+                continue
+            predict = predictions[0]['predictions'][0]['actions'][0]['label']
+            #print(predict, action_idx)
+            if predict == action_idx:
+                info[action_idx][0] += 1 # 맞은 갯수
+    
+    total_n = 0
+    total_k = 0
+    pprint(info)
+    for id in info:
+        k = info[id][0]
+        n = info[id][1]
+        total_k += k
+        total_n += n
+        if n == 0:
+            print(f"[{id}] {k}/{n}")
+        else:
+            print(f"[{id}] {k}/{n}, {k/n}")
+    print(f"[total] {total_k}/{total_n}, {total_k/total_n}")
+    
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
-    parser.add_argument('--data_dir', default="data", required=False, help="path to dataset dir")
-    parser.add_argument('--fps', default=None, required=False, help="fps to embed video")
+    parser.add_argument('--data_dir', default="data", help="path to dataset dir")
     parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
+    parser.add_argument('--frames', type=int, default=0, help="number of frames to predict")
+    parser.add_argument('--fps', default=None, required=False, help="fps to embed video")
+    
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
     parser.add_argument('--use_flipped_motion', action='store_true',
@@ -95,7 +109,6 @@ if __name__ == '__main__':
     parser.add_argument('--use_invisibility_aug', action='store_true',
                         help="change random joints' visibility to invisible during training")
     parser.add_argument('--debug', action='store_true', help="limit to 500 frames")
-    parser.add_argument('--update', action='store_true', help="Update database using custom skeleton")
     # related to video processing
     parser.add_argument('--video_sampling_window_size', type=int, default=16,
                         help='window size to use for similarity prediction')
@@ -114,4 +127,4 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     config = Config(args)
-    main(config)
+    main()
