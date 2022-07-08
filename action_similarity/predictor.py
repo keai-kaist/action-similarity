@@ -247,8 +247,8 @@ class Predictor:
     def predict(
         self,
         keypoints_by_id: Dict[str, List[Dict]], 
-        height = 1080,
-        width = 1920,
+        height = 480,
+        width = 640,
         threading = False):
         
         h1, w1, self.scale = pad_to_height(self.config.img_size[0], height, width)
@@ -289,7 +289,10 @@ class Predictor:
             mean_pose_bpe=self.mean_pose_bpe,
             std_pose_bpe=self.std_pose_bpe,
             scale=self.scale,
-            device=self.config.device,)
+            device=self.config.device,
+            video_window_size=self.config.video_window_size,
+            video_stride=self.config.video_stride)
+
         action_label, score, similarities_per_actions = self._predict_one(seq_features)
         prediction = self.make_prediction(id, annotations, action_label, score)
         self._action_label_per_id[id] = action_label
