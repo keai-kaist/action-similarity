@@ -57,7 +57,6 @@ def main(config: Config):
                 fps = int(args.fps)
                 basename, ext = os.path.splitext(video_filepath)
                 pickle_name = basename + f"_{fps}" + ext
-            print(pickle_name)
             keypoints_by_id = cache_file(pickle_name, extract_keypoints, 
                 *(video_filepath,), **{'fps':fps,})
             #print(video_filepath)
