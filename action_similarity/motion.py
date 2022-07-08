@@ -3,6 +3,7 @@ import base64
 import json
 from typing import Dict, List, Union
 import requests
+import shutil
 
 from tqdm import tqdm
 from glob import glob
@@ -188,9 +189,11 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
 
     video_name, _ = os.path.splitext(video_path)
     images_path = os.path.join(video_name, 'images')
+    shutil.rmtree(images_path)
     os.makedirs(images_path, exist_ok=True)
     
     json_path = os.path.join(video_name, 'json')
+    shutil.rmtree(json_path)
     os.makedirs(json_path, exist_ok=True)
 
     clip = mpy.VideoFileClip(video_path)

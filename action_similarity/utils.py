@@ -43,6 +43,7 @@ def cache_file(file_name: str, func, *args, **kwargs):
     
     # cache pickle 생성 또는 불러오기
     if os.path.exists(base_name):
+        #print("load from", file_name)
         with open(base_name, "rb") as f:
             data = pickle.load(f)
     else:
@@ -72,6 +73,7 @@ def time_align(seq1: List[np.ndarray], seq2: List[np.ndarray]):
 def save_embeddings(db: Dict, config: Config, embeddings_dir = "embeddings"):
     k_clusters = config.k_clusters if not config is None and config.clustering else 0
     # embeddings_dir = Path(config.data_dir) / embeddings_dir
+    embeddings_dir = Path(embeddings_dir)
     if not os.path.exists(embeddings_dir):
         os.mkdir(embeddings_dir)
 
@@ -92,10 +94,10 @@ def save_embeddings(db: Dict, config: Config, embeddings_dir = "embeddings"):
     with open(embeddings_dir / "readme.md", 'a') as f:
         f.write(f"K clusters of saved embeddings: {config.k_clusters}\n")
             
-def load_embeddings(config: Config, embeddings_dir = "embeddings"):
+def load_embeddings(config: Config, embeddings_dir = "embeddings", target_actions=None):
     k_clusters = config.k_clusters if not config.k_clusters is None and config.clustering else 0
     # embeddings_dir = Path(config.data_dir) / embeddings_dir
-    
+    embeddings_dir = Path(embeddings_dir)
     std_db = {}
     for embedding_file in glob(f'{embeddings_dir}/*'):
         if not embedding_file.endswith(".pickle"):
@@ -107,12 +109,14 @@ def load_embeddings(config: Config, embeddings_dir = "embeddings"):
             seq_features_per_k = pickle.load(f)
             file_name = os.path.basename(embedding_file).rstrip(".pickle")
             action_idx = int(file_name.split("_")[-1])
-            std_db[action_idx] = seq_features_per_k[k_clusters]
+            if target_actions is None or action_idx in target_actions:
+                std_db[action_idx] = seq_features_per_k[k_clusters]
     return std_db 
 
 def exist_embeddings(config: Config = None, embeddings_dir = "embeddings"):
     k_clusters = config.k_clusters if not config is None and config.clustering else 0
     # embeddings_dir = Path(config.data_dir) / embeddings_dir
+    embeddings_dir = Path(embeddings_dir)
     exist_flags = []
     for embedding_file in glob(f'{embeddings_dir}/*'):
         if not embedding_file.endswith(".pickle"):
