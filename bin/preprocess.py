@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Dict, List
 
 from glob import glob
-from torch import embedding
 from tqdm import tqdm
 import numpy as np
 
@@ -16,19 +15,28 @@ from action_similarity.utils import cache_file, save_embeddings, exist_embedding
 
 from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
-from action_similarity.predictor import Predictor
 
+""" 
+Current preprocess hyperparameters:
+
+    Parameters:
+        fps (int): framerate of training videos. (current = 15)
+        k_neighbors (int): number of neighbors to use for KNN (current = 5)
+        k_clusters (int): number of cluster to use for KMeans (current = 0)
+        video_sampling_window_size (int): window size to use for similarity prediction (current = 16)
+        video_sampling_window_stride (int): stride determining when to start next window of frames (current = 8)
+"""
 def main(config: Config):
     # from video to embeddings
     data_dir = Path(args.data_dir)
     video_path = data_dir/"videos"
-    # skeleton_path = "custom_data/custom_skeleton"
-    # embedding_path = "custom_data/embeddings"
     data_path = data_dir
-    model_path=data_dir/'model_best.pth.tar'
-    k_clusters = config.k_clusters
+    model_path = data_dir/'model_best.pth.tar'
     embedding_dir = Path(config.data_dir) / 'embeddings'
-    #assert not exist_embeddings(config, embeddings_dir=embedding_dir), f"The embeddings(k = {k_clusters}) already exist"
+    
+    # for clustering
+    # k_clusters = config.k_clusters
+    # assert not exist_embeddings(config, embeddings_dir=embedding_dir), f"The embeddings(k = {k_clusters}) already exist"
     
     height, width = 1080, 1920
     h1, w1, scale = pad_to_height(config.img_size[0], height, width)
@@ -46,22 +54,17 @@ def main(config: Config):
         for video_filepath in tqdm(glob(f'{video_dir}/*')):
             if os.path.splitext(video_filepath)[1] not in ['.mp4', '.avi', '.mkv']:
                 continue
-            # print(count)
-            # count += 1
-            # if count == 3:
-            #     break
-            if args.fps is None or args.fps=='30':
-                fps=30
+                
+            fps = args.fps
+            if fps == 30:
                 pickle_name = video_filepath
             else:
-                fps = int(args.fps)
                 basename, ext = os.path.splitext(video_filepath)
                 pickle_name = basename + f"_{fps}" + ext
+                
             keypoints_by_id = cache_file(pickle_name, extract_keypoints, 
-                *(video_filepath,), **{'fps':fps,})
-            #print(video_filepath)
-            #print(json.dumps(keypoints_by_id, indent = 4))
-            #breakpoint()
+                *(video_filepath,), **{'fps': fps,})
+            
             id = take_best_id(keypoints_by_id)
             seq_features = compute_motion_embedding(
                 annotations=keypoints_by_id[id],
@@ -70,9 +73,11 @@ def main(config: Config):
                 std_pose_bpe=std_pose_bpe,
                 scale=scale,
                 device=config.device,
+                video_window_size=args.video_sampling_window_size,
+                video_stride=args.video_sampling_stride,
             )
             if len(seq_features) == 0:
-                print(f"[Warning] length of keypoints is not enough, {len(keypoints_by_id[id])}")
+                print(f"[Warning] length of keypoints is not enough, {len(keypoints_by_id[id])} {video_filepath}")
                 continue
                 
             db[action_idx].append(seq_features)
@@ -84,8 +89,8 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
-    parser.add_argument('--data_dir', default="data", required=False, help="path to dataset dir")
-    parser.add_argument('--fps', default=None, required=False, help="fps to embed video")
+    parser.add_argument('--data_dir', default="data", help="path to dataset dir")
+    parser.add_argument('--fps', type=int, default=30, help="fps to embed video")
     parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
@@ -98,7 +103,7 @@ if __name__ == '__main__':
     # related to video processing
     parser.add_argument('--video_sampling_window_size', type=int, default=16,
                         help='window size to use for similarity prediction')
-    parser.add_argument('--video_sampling_stride', type=int, default=16,
+    parser.add_argument('--video_sampling_stride', type=int, default=8,
                         help='stride determining when to start next window of frames')
     parser.add_argument('--use_all_joints_on_each_bp', action='store_true',
                         help="using all joints on each body part as input, as opposed to particular body part")

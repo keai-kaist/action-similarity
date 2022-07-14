@@ -4,6 +4,7 @@ from typing import List
 from pathlib import Path
 from pprint import pprint
 from glob import glob
+import random
 
 import numpy as np
 from tqdm import tqdm
@@ -14,11 +15,22 @@ from action_similarity.database import ActionDatabase
 from action_similarity.motion import extract_keypoints, compute_motion_embedding
 from action_similarity.predictor import Predictor
 
+""" 
+Current accuracy_test hyperparameters:
+
+    Parameters:
+        fps (int): framerate of training videos. (current = 10)
+        k_neighbors (int): number of neighbors to use for KNN (current = 5)
+        k_clusters (int): number of cluster to use for KMeans (current = 0)
+        video_sampling_window_size (int): window size to use for similarity prediction (current = 16)
+        video_sampling_window_stride (int): stride determining when to start next window of frames (current = 8)
+"""
 def main():
-    target_actions = [8,9,10,11,12,13]
+    random.seed(1234)
+    target_actions = [8, 9, 10, 11, 12, 13]
     data_path = Path(config.data_dir)
     video_path = data_path / "testset"
-    info = {action_idx:[0,0] for action_idx in target_actions}
+    info = {action_idx: [0, 0] for action_idx in target_actions}
     
     timer = Timer()
     timer.log("DB")
@@ -29,8 +41,11 @@ def main():
         label_path=data_path / 'action_label.txt',
         target_actions=target_actions
     )
-    for action_idx, features in db.db.items():
-        print(db.actions[action_idx], len(features))
+    for action_idx in db.db.keys():
+        db.db[action_idx] = random.sample(db.db[action_idx], 12)
+        #features = random.sample(features, 10)
+        print(db.actions[action_idx], len(db.db[action_idx]))
+        
 
     predictor = Predictor(
         config=config, 
@@ -42,25 +57,24 @@ def main():
         if not action_str.isdigit(): # 숫자가 아닌 디렉토리인 경우 넘어감
             continue
         action_idx = int(os.path.basename(os.path.normpath(video_dir)))
-        if action_idx not in target_actions: #
+        if action_idx not in target_actions:
             continue
+        
         print(f"Current action idx: {action_idx}")
-        #for video_filepath in tqdm(glob(f'{video_dir}/*')):
-        for video_filepath in (glob(f'{video_dir}/*')):
+        for video_filepath in glob(f'{video_dir}/*'):
             if os.path.splitext(video_filepath)[1] not in ['.mp4', '.avi', '.mkv']:
                 continue
             info[action_idx][1] += 1 # 전체 비디오 갯수
 
-            if args.fps is None or args.fps == "30":
-                fps=30
+            fps = args.fps
+            if fps == 30:
                 pickle_name = video_filepath
             else:
-                fps = int(args.fps)
                 basename, ext = os.path.splitext(video_filepath)
                 pickle_name = basename + f"_{fps}" + ext
-            #print(pickle_name)
+                
             keypoints_by_id = cache_file(pickle_name, extract_keypoints, 
-                *(video_filepath,), **{'fps':fps,})
+                *(video_filepath,), **{'fps': fps,})
             for id in keypoints_by_id:
                 print(video_filepath, len(keypoints_by_id[id]))
             
@@ -80,7 +94,6 @@ def main():
     
     total_n = 0
     total_k = 0
-    pprint(info)
     for id in info:
         k = info[id][0]
         n = info[id][1]
@@ -98,9 +111,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--name', type=str, default="sim_test", help="task name")
     parser.add_argument('--data_dir', default="data", help="path to dataset dir")
-    parser.add_argument('--k_neighbors', type=int, default=1, help="number of neighbors to use for KNN")
+    parser.add_argument('--k_neighbors', type=int, default=5, help="number of neighbors to use for KNN")
     parser.add_argument('--frames', type=int, default=0, help="number of frames to predict")
-    parser.add_argument('--fps', default=None, required=False, help="fps to embed video")
+    parser.add_argument('--fps', type=int, default=30, required=False, help="fps to embed video")
     
     parser.add_argument('--k_clusters', type=int, default=None, help="number of cluster to use for KMeans")
     parser.add_argument('-g', '--gpu_ids', type=int, default=0, required=False)
@@ -112,7 +125,7 @@ if __name__ == '__main__':
     # related to video processing
     parser.add_argument('--video_sampling_window_size', type=int, default=16,
                         help='window size to use for similarity prediction')
-    parser.add_argument('--video_sampling_stride', type=int, default=16,
+    parser.add_argument('--video_sampling_stride', type=int, default=8,
                         help='stride determining when to start next window of frames')
     parser.add_argument('--use_all_joints_on_each_bp', action='store_true',
                         help="using all joints on each body part as input, as opposed to particular body part")
