@@ -125,13 +125,37 @@ class Predictor:
                 self.similarities_per_actions[action_label].append(similarity)
         return self.similarities_per_actions
     
+    def _linear_scale_indice(self, list1, list2):
+        if len(list1) > len(list2):
+            longer_list = list1
+            shorter_list = list2
+            swaped = False
+        else:
+            longer_list = list2
+            shorter_list = list1
+            swaped = True
+        l = len(longer_list) - 1
+        s = len(shorter_list) - 1
+        longer_indice = list(range(len(longer_list)))
+        shorter_indice = [0]
+        for i in range(1, l + 1):
+            shorter_indice.append(int(i * (s/l))) # from long to short
+
+        if not swaped:
+            return longer_indice, shorter_indice
+        else:
+            return shorter_indice, longer_indice
+
     def compute_action_similarity(self, motion_embedding, motion_embedding_anchor, action_label, void=False):
         similarity_per_body_part = []
         for i in range(len(motion_embedding_anchor)): # equal to # body part
             min_len = min(len(motion_embedding_anchor[i]), len(motion_embedding[i]))
-            total_path_similarity = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][:min_len]),
-                torch.Tensor(motion_embedding[i][:min_len]))
-            
+            idx1, idx2 =self._linear_scale_indice(motion_embedding_anchor[i], motion_embedding[i])
+            total_path_similarity = self.cosine_score(torch.Tensor(motion_embedding_anchor[i])[idx1],
+                torch.Tensor(motion_embedding[i])[idx2])
+            # total_path_similarity = self.cosine_score(torch.Tensor(motion_embedding_anchor[i][:min_len]),
+            #     torch.Tensor(motion_embedding[i][:min_len]))
+
             #breakpoint()
             similarity_per_body_part.append(float(total_path_similarity.mean()))
 
