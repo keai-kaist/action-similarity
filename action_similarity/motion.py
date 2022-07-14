@@ -239,6 +239,12 @@ def extract_keypoints(video_path: str, fps: int) -> Dict[int, Dict]:
                 'keypoints': keypoints,
             })
         tracker_id = response_json['tracker_id']
+        
+    for id, keypoints in keypoints_by_id.items():
+        json_filename = f'track_id_{id:03d}.json'
+        with open(os.path.join(json_path, json_filename), 'w') as f:
+            json.dump(keypoints, f, indent=4)
+        
     return keypoints_by_id
 
     # skeletons_by_id = {}
